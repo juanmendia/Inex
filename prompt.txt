@@ -1,0 +1,4009 @@
+Quiero que actúes como un equipo completo de ingeniería de software de nivel senior/staff, compuesto por:
+
+- Software Architect
+- Senior Full Stack Developer
+- Database Architect
+- Security Engineer
+- UX/UI Designer
+- DevOps Engineer
+- QA Engineer
+- Product Manager
+
+Necesito desarrollar una plataforma web SaaS de Recursos Humanos multiempresa / multi-tenant.
+
+IMPORTANTE:
+
+No quiero que simplemente me expliques cómo hacerlo.
+
+Quiero que analices el proyecto, definas la arquitectura y DESARROLLES el sistema de forma profesional, modular, escalable y segura.
+
+El producto debe quedar preparado desde el día 1 para incorporar nuevos módulos de Recursos Humanos en el futuro sin tener que modificar la arquitectura principal.
+
+==================================================
+1. CONCEPTO GENERAL DEL PRODUCTO
+==================================================
+
+La aplicación será una plataforma de Recursos Humanos para múltiples empresas.
+
+Cada empresa tendrá su propio espacio aislado dentro de la plataforma.
+
+Ejemplo:
+
+PLATAFORMA
+│
+├── Empresa A
+│   ├── Administradores RRHH
+│   ├── Empleados
+│   └── Información propia
+│
+├── Empresa B
+│   ├── Administradores RRHH
+│   ├── Empleados
+│   └── Información propia
+│
+└── Empresa C
+    ├── Administradores RRHH
+    ├── Empleados
+    └── Información propia
+
+NUNCA un usuario de una empresa debe poder acceder a información de otra empresa.
+
+La arquitectura debe ser realmente multi-tenant.
+
+La empresa debe poder:
+
+- Crear empleados
+- Editar empleados
+- Desactivar empleados
+- Cargar recibos
+- Asignar recibos a empleados
+- Consultar el estado de los recibos
+- Ver quién firmó
+- Ver quién no firmó
+- Ver quién firmó en disconformidad
+- Responder consultas de empleados
+- Gestionar eventos
+- Gestionar comunicaciones
+- Administrar usuarios y permisos
+
+El empleado debe poder:
+
+- Iniciar sesión
+- Ver su dashboard
+- Ver sus recibos
+- Descargar sus recibos
+- Firmarlos en conformidad
+- Firmarlos en disconformidad
+- Indicar el motivo de la disconformidad
+- Ver recibos pendientes
+- Ver recibos firmados
+- Ver recibos firmados en disconformidad
+- Consultar a Recursos Humanos
+- Ver cumpleaños
+- Ver eventos
+- Ver comunicaciones
+- Gestionar su perfil
+
+==================================================
+2. OBJETIVO DEL PRODUCTO
+==================================================
+
+El sistema debe parecer un producto SaaS profesional, moderno y corporativo.
+
+No quiero un sistema administrativo antiguo.
+
+La experiencia debe ser similar a una plataforma moderna de gestión empresarial.
+
+Debe funcionar perfectamente:
+
+- Desktop
+- Notebook
+- Tablet
+- Mobile
+
+El idioma inicial será español.
+
+El sistema debe estar preparado para internacionalización futura.
+
+==================================================
+3. STACK TECNOLÓGICO
+==================================================
+
+Quiero utilizar una arquitectura moderna y mantenible.
+
+Preferencia:
+
+Frontend:
+- Next.js
+- TypeScript
+- React
+- Tailwind CSS
+- shadcn/ui o equivalente profesional
+- Lucide Icons
+
+Backend:
+- Next.js / API Routes / Server Actions según corresponda
+
+Base de datos:
+- PostgreSQL
+
+Autenticación:
+- Supabase Auth o solución equivalente robusta
+
+Storage:
+- Supabase Storage o almacenamiento S3 compatible
+
+Seguridad:
+- Row Level Security
+- RBAC
+- validación server-side
+- protección contra acceso entre tenants
+- auditoría
+
+Si considerás que alguna tecnología debe cambiarse por una alternativa superior, explicá primero el motivo y mantené una arquitectura equivalente.
+
+NO quiero una aplicación monolítica desordenada.
+
+Quiero una arquitectura modular.
+
+==================================================
+4. ARQUITECTURA MULTI-TENANT
+==================================================
+
+Este punto es CRÍTICO.
+
+Todos los datos relacionados con una empresa deben pertenecer a un tenant.
+
+Conceptualmente:
+
+tenants
+users
+employees
+documents
+receipts
+events
+birthdays
+hr_conversations
+notifications
+etc.
+
+deben estar relacionados mediante:
+
+tenant_id
+
+Ejemplo:
+
+employees
+-----------------
+id
+tenant_id
+user_id
+employee_number
+first_name
+last_name
+dni
+email
+phone
+birth_date
+hire_date
+position
+department
+status
+created_at
+updated_at
+
+No debe existir ninguna consulta que permita obtener empleados sin considerar el tenant correspondiente.
+
+Implementar aislamiento a nivel de:
+
+- Base de datos
+- API
+- Server Actions
+- Middleware
+- Frontend
+- Storage
+
+Usar RLS cuando corresponda.
+
+Un empleado de Empresa A jamás debe poder consultar:
+
+- empleados de Empresa B
+- recibos de Empresa B
+- documentos de Empresa B
+- eventos privados de Empresa B
+- conversaciones de RRHH de Empresa B
+
+Aunque intente manipular la URL o realizar una llamada manual a la API.
+
+==================================================
+5. TIPOS DE USUARIO
+==================================================
+
+Diseñar un sistema de roles y permisos extensible.
+
+Roles iniciales:
+
+SUPER_ADMIN
+TENANT_ADMIN
+HR_ADMIN
+HR_OPERATOR
+EMPLOYEE
+
+SUPER_ADMIN:
+
+Es el administrador global de la plataforma.
+
+Puede:
+
+- Crear empresas
+- Editar empresas
+- Suspender empresas
+- Administrar tenants
+- Ver métricas globales
+- Administrar planes
+- Administrar usuarios
+- Ver logs globales
+- Configurar funcionalidades
+
+No debe acceder automáticamente al contenido privado de empleados salvo que exista un permiso explícito para ello.
+
+TENANT_ADMIN:
+
+Administrador de una empresa.
+
+Puede:
+
+- Administrar empleados
+- Administrar RRHH
+- Cargar documentos
+- Cargar recibos
+- Gestionar eventos
+- Gestionar usuarios
+- Consultar reportes
+- Configurar la empresa
+
+HR_ADMIN:
+
+Responsable de Recursos Humanos.
+
+Puede:
+
+- Gestionar empleados
+- Gestionar recibos
+- Gestionar documentos
+- Gestionar consultas
+- Gestionar eventos
+- Consultar información de RRHH
+
+HR_OPERATOR:
+
+Usuario operativo de RRHH con permisos limitados.
+
+EMPLOYEE:
+
+Solo puede acceder a:
+
+- Su información
+- Sus recibos
+- Sus documentos
+- Sus consultas
+- Información pública interna de su empresa
+- Cumpleaños
+- Eventos
+- Comunicaciones
+
+El sistema debe permitir en el futuro crear permisos granulares.
+
+Ejemplo:
+
+employees.read
+employees.write
+receipts.read
+receipts.write
+documents.read
+documents.write
+hr.read
+hr.respond
+events.write
+etc.
+
+==================================================
+6. LOGIN
+==================================================
+
+Crear una pantalla de login moderna.
+
+Campos:
+
+- Email
+- Contraseña
+
+Opciones:
+
+- Recordarme
+- Recuperar contraseña
+
+Posteriormente puede agregarse:
+
+- Magic Link
+- MFA
+- Google/Microsoft
+- SSO empresarial
+
+Después del login determinar automáticamente:
+
+- tenant
+- usuario
+- rol
+- permisos
+
+y redirigir al dashboard correspondiente.
+
+==================================================
+7. DASHBOARD DEL EMPLEADO
+==================================================
+
+Inspirarse conceptualmente en el dashboard de las capturas que adjunto, pero NO copiarlo literalmente.
+
+Quiero una interfaz mucho más moderna.
+
+La pantalla principal debe mostrar:
+
+---------------------------------
+SALUDO
+---------------------------------
+
+"Hola, Juan"
+
+"Buenos días"
+
+Opcionalmente mostrar avatar.
+
+---------------------------------
+TARJETAS PRINCIPALES
+---------------------------------
+
+Recibos pendientes
+
+Ejemplo:
+
+10
+Recibos pendientes de firma
+
+Botón:
+"Ver recibos"
+
+---------------------------------
+
+Consultas RRHH
+
+Ejemplo:
+
+2
+Consultas pendientes
+
+Botón:
+"Ver consultas"
+
+---------------------------------
+
+Próximo evento
+
+Ejemplo:
+
+15 de septiembre
+
+"Capacitación interna"
+
+---------------------------------
+
+Próximo cumpleaños
+
+Ejemplo:
+
+"Hoy cumple años María"
+
+---------------------------------
+
+CALENDARIO / EVENTOS
+---------------------------------
+
+Mostrar calendario mensual.
+
+Eventos:
+
+- Cumpleaños
+- Aniversarios laborales
+- Feriados
+- Eventos internos
+- Capacitaciones
+- Reuniones
+- Comunicaciones
+
+Utilizar diferentes indicadores visuales.
+
+---------------------------------
+
+CUMPLEAÑOS
+---------------------------------
+
+Mostrar:
+
+Hoy
+Esta semana
+Próximos cumpleaños
+
+Ejemplo:
+
+🎂 María Pérez
+12 de septiembre
+
+🎂 Carlos Gómez
+15 de septiembre
+
+No mostrar información sensible innecesaria.
+
+---------------------------------
+
+ACTIVIDAD RECIENTE
+---------------------------------
+
+Ejemplo:
+
+"Recibo de agosto pendiente de firma"
+
+"RRHH respondió tu consulta"
+
+"Nuevo documento disponible"
+
+"Nuevo evento agregado"
+
+==================================================
+8. DASHBOARD DE RRHH
+==================================================
+
+El administrador de empresa debe tener otro dashboard.
+
+Mostrar KPIs:
+
+EMPLEADOS
+156
+
+ACTIVOS
+148
+
+RECIBOS PENDIENTES
+23
+
+FIRMADOS
+120
+
+NO CONFORMES
+5
+
+CONSULTAS PENDIENTES
+8
+
+También:
+
+- gráfico de recibos
+- actividad reciente
+- próximos cumpleaños
+- próximos eventos
+- empleados pendientes
+- documentos pendientes
+
+Agregar accesos rápidos:
+
++ Nuevo empleado
++ Cargar recibos
++ Nuevo evento
++ Nueva comunicación
++ Ver consultas
+
+==================================================
+9. GESTIÓN DE EMPLEADOS
+==================================================
+
+Crear módulo:
+
+/rrhh/empleados
+
+Tabla profesional.
+
+Columnas:
+
+- Foto
+- Nombre
+- Apellido
+- DNI
+- Legajo
+- Email
+- Puesto
+- Sector
+- Fecha de ingreso
+- Estado
+- Acciones
+
+Filtros:
+
+- Activos
+- Inactivos
+- Sector
+- Puesto
+- Fecha de ingreso
+
+Buscar por:
+
+- Nombre
+- Apellido
+- DNI
+- Legajo
+- Email
+
+Acciones:
+
+- Ver
+- Editar
+- Desactivar
+- Ver recibos
+- Ver documentos
+- Ver actividad
+
+==================================================
+10. FICHA DEL EMPLEADO
+==================================================
+
+Crear una ficha completa del empleado.
+
+Tabs:
+
+Información personal
+
+Información laboral
+
+Recibos
+
+Documentos
+
+Consultas RRHH
+
+Actividad
+
+Configuración
+
+Información personal:
+
+- Nombre
+- Apellido
+- DNI
+- Fecha de nacimiento
+- Email
+- Teléfono
+- Dirección
+- Localidad
+- Foto
+
+Información laboral:
+
+- Legajo
+- Puesto
+- Sector
+- Fecha de ingreso
+- Tipo de contratación
+- Estado
+- Supervisor
+- Centro de costo
+
+No permitir que un empleado vea información administrativa que no corresponda.
+
+==================================================
+11. MÓDULO DE RECIBOS
+==================================================
+
+Este será uno de los módulos principales.
+
+Crear:
+
+/empleado/recibos
+
+y
+
+/rrhh/recibos
+
+Estados posibles:
+
+PENDIENTE
+FIRMADO_CONFORME
+FIRMADO_NO_CONFORME
+VENCIDO
+ANULADO
+
+Dashboard del empleado:
+
+---------------------------------
+
+Todos
+
+Pendientes
+
+Firmados
+
+No conformes
+
+---------------------------------
+
+Cada recibo debe mostrar:
+
+Período
+Tipo
+Fecha de publicación
+Estado
+
+Ejemplo:
+
+RECIBO DE HABERES
+Agosto 2026
+
+Pendiente de firma
+
+[Ver recibo]
+
+---------------------------------
+
+Al abrir el recibo:
+
+Mostrar PDF dentro de un visor.
+
+Controles:
+
+- Zoom
+- Página anterior
+- Página siguiente
+- Pantalla completa
+- Descargar
+
+Botones:
+
+[Firmar en conformidad]
+
+[Firmar NO en conformidad]
+
+==================================================
+12. FIRMA EN CONFORMIDAD
+==================================================
+
+Al seleccionar:
+
+"Firmar en conformidad"
+
+mostrar modal:
+
+"¿Confirmás que recibiste y aceptás el presente recibo?"
+
+Botones:
+
+Cancelar
+
+Confirmar firma
+
+Guardar:
+
+- receipt_id
+- employee_id
+- timestamp
+- IP
+- user_agent
+- action
+- hash del documento si corresponde
+
+Registrar evento de auditoría.
+
+IMPORTANTE:
+
+Esta funcionalidad debe denominarse inicialmente:
+
+"Firma / conformidad electrónica"
+
+No afirmar que tiene validez de firma digital certificada si no se integra un mecanismo legalmente reconocido.
+
+La arquitectura debe permitir integrar posteriormente firma digital/certificada.
+
+==================================================
+13. FIRMA NO CONFORME
+==================================================
+
+Si el empleado selecciona:
+
+"Firmar NO en conformidad"
+
+mostrar modal:
+
+"Indique el motivo de la disconformidad"
+
+Campo obligatorio:
+
+Motivo
+
+Botón:
+
+"Confirmar disconformidad"
+
+Guardar:
+
+- receipt_id
+- employee_id
+- timestamp
+- motivo
+- IP
+- user_agent
+- estado
+
+Notificar automáticamente a RRHH.
+
+El recibo debe pasar a:
+
+FIRMADO_NO_CONFORME
+
+RRHH debe poder responder.
+
+==================================================
+14. HISTORIAL DE RECIBOS
+==================================================
+
+El empleado debe poder ver todos sus recibos históricos.
+
+Filtros:
+
+Año
+
+Mes
+
+Estado
+
+Tipo
+
+Ejemplo:
+
+2026
+
+Agosto
+Julio
+Junio
+Mayo
+Abril
+Marzo
+Febrero
+Enero
+
+Permitir descarga individual.
+
+Más adelante permitir descarga masiva ZIP.
+
+==================================================
+15. CARGA MASIVA DE RECIBOS
+==================================================
+
+RRHH debe poder cargar muchos recibos.
+
+Crear:
+
+/rrhh/recibos/cargar
+
+Debe permitir:
+
+- Drag & Drop
+- Seleccionar archivos
+- PDF
+
+Idealmente permitir:
+
+RECIBO_1234_2026_08.pdf
+
+o alguna estructura configurable.
+
+Pero NO depender exclusivamente del nombre del archivo.
+
+Debe existir un proceso de asignación.
+
+Flujo:
+
+1. Subir archivos
+2. Procesar
+3. Identificar empleado
+4. Asociar período
+5. Previsualizar
+6. Confirmar publicación
+
+Mostrar errores.
+
+Ejemplo:
+
+100 archivos encontrados
+
+96 correctamente asociados
+
+4 requieren revisión
+
+==================================================
+16. SEGURIDAD DE DOCUMENTOS
+==================================================
+
+Los PDF de recibos NO deben ser públicos.
+
+No usar URLs públicas permanentes.
+
+Utilizar:
+
+- private bucket
+- signed URLs
+- permisos
+- validación de tenant
+- validación de employee_id
+
+Antes de entregar un documento verificar:
+
+usuario
+tenant
+rol
+empleado
+permisos
+
+==================================================
+17. CONSULTAS A RECURSOS HUMANOS
+==================================================
+
+Crear módulo de consultas.
+
+Empleado:
+
+/empleado/consultas
+
+Botón:
+
+"+ Nueva consulta"
+
+Campos:
+
+Categoría
+
+- Recibo
+- Sueldo
+- Vacaciones
+- Licencia
+- Documentación
+- Obra social
+- Datos personales
+- Otro
+
+Asunto
+
+Mensaje
+
+Adjuntos opcionales.
+
+Luego:
+
+Estado:
+
+ABIERTA
+EN_REVISION
+RESPONDIDA
+CERRADA
+
+Debe existir una conversación tipo ticket/chat.
+
+Ejemplo:
+
+Empleado:
+
+"Hola, tengo una consulta sobre mi recibo."
+
+RRHH:
+
+"Hola Juan, revisamos el caso..."
+
+Cada mensaje debe guardar:
+
+- usuario
+- fecha
+- hora
+- contenido
+- adjuntos
+- lectura
+
+Notificaciones.
+
+==================================================
+18. CENTRO DE NOTIFICACIONES
+==================================================
+
+Crear sistema de notificaciones.
+
+Tipos:
+
+- Nuevo recibo
+- Recibo pendiente
+- Recibo próximo a vencer
+- Firma realizada
+- Firma no conforme
+- RRHH respondió
+- Nuevo documento
+- Nuevo evento
+- Cumpleaños
+- Comunicación interna
+
+Mostrar campana:
+
+🔔
+
+con contador.
+
+Crear:
+
+/notificaciones
+
+Permitir marcar:
+
+- leída
+- todas como leídas
+
+Preparar arquitectura para:
+
+- email
+- push
+- WhatsApp
+- SMS
+
+en el futuro.
+
+==================================================
+19. CUMPLEAÑOS
+==================================================
+
+Cada empleado tendrá:
+
+birth_date
+
+El sistema debe generar automáticamente cumpleaños.
+
+Dashboard:
+
+"Cumpleaños de hoy"
+
+"Próximos cumpleaños"
+
+"Cumpleaños del mes"
+
+No mostrar año de nacimiento.
+
+Permitir configurar desde RRHH si los cumpleaños son visibles para todos.
+
+Configuración:
+
+birthday_visibility
+
+PUBLIC
+DEPARTMENT
+PRIVATE
+
+==================================================
+20. EVENTOS
+==================================================
+
+Crear módulo de eventos.
+
+Tipos:
+
+- Capacitación
+- Reunión
+- Evento interno
+- Aniversario
+- Feriado
+- Otro
+
+Campos:
+
+- Título
+- Descripción
+- Fecha
+- Hora
+- Lugar
+- Modalidad
+- Imagen
+- Responsable
+- Público
+- Estado
+
+Calendario mensual/semanal/diario.
+
+Permitir:
+
+- crear
+- editar
+- cancelar
+- visualizar
+
+Más adelante:
+
+- inscripción
+- cupos
+- asistencia
+
+==================================================
+21. COMUNICACIONES INTERNAS
+==================================================
+
+Crear módulo preparado para:
+
+- comunicados
+- novedades
+- anuncios
+- políticas
+- noticias internas
+
+RRHH puede crear:
+
+Título
+Imagen
+Contenido
+Fecha
+Destinatarios
+
+Destinatarios:
+
+- Toda la empresa
+- Sector
+- Departamento
+- Grupo
+- Empleados específicos
+
+==================================================
+22. DOCUMENTOS
+==================================================
+
+Crear módulo general de documentos.
+
+Esto es importante porque en el futuro quiero utilizar el sistema para mucho más que recibos.
+
+Tipos:
+
+- Recibo
+- Contrato
+- Certificado
+- Reglamento
+- Política
+- Constancia
+- Otro
+
+Estados:
+
+- Pendiente
+- Disponible
+- Firmado
+- No conforme
+- Anulado
+
+La arquitectura de documentos debe ser reutilizable.
+
+No crear un sistema separado de archivos para cada módulo.
+
+Crear un DOCUMENT SERVICE reutilizable.
+
+==================================================
+23. AUDITORÍA
+==================================================
+
+Crear sistema completo de auditoría.
+
+Registrar acciones importantes:
+
+LOGIN
+LOGOUT
+CREATE
+UPDATE
+DELETE
+VIEW
+DOWNLOAD
+SIGN
+SIGN_NON_CONFORM
+UPLOAD
+PUBLISH
+ANSWER
+etc.
+
+Tabla:
+
+audit_logs
+
+Campos:
+
+id
+tenant_id
+user_id
+action
+entity_type
+entity_id
+metadata
+ip_address
+user_agent
+created_at
+
+La auditoría debe ser inmutable para usuarios normales.
+
+==================================================
+24. CONFIGURACIÓN DE EMPRESA
+==================================================
+
+Crear:
+
+/rrhh/configuracion
+
+Datos:
+
+- Nombre
+- Razón social
+- CUIT
+- Logo
+- Dirección
+- Email
+- Teléfono
+- Zona horaria
+- Configuración de cumpleaños
+- Configuración de notificaciones
+- Configuración de recibos
+
+Personalización visual:
+
+- Logo
+- Color principal
+- Color secundario
+
+La plataforma debe adaptar parte de la interfaz al branding de cada empresa.
+
+==================================================
+25. SUPER ADMIN
+==================================================
+
+Crear panel:
+
+/admin
+
+Dashboard:
+
+Empresas
+Usuarios
+Empleados
+Documentos
+Actividad
+
+KPIs:
+
+Total empresas
+
+Empresas activas
+
+Total empleados
+
+Usuarios activos
+
+Documentos publicados
+
+etc.
+
+Módulo:
+
+/admin/tenants
+
+Tabla:
+
+Empresa
+Estado
+Plan
+Empleados
+Usuarios
+Fecha de alta
+Última actividad
+
+Acciones:
+
+Ver
+Editar
+Suspender
+Activar
+
+==================================================
+26. MODELO DE DATOS
+==================================================
+
+Diseñar una base PostgreSQL profesional.
+
+Como mínimo considerar:
+
+tenants
+
+tenant_settings
+
+users/profiles
+
+roles
+
+permissions
+
+role_permissions
+
+user_roles
+
+employees
+
+departments
+
+positions
+
+employee_documents
+
+documents
+
+document_versions
+
+receipts
+
+receipt_signatures
+
+receipt_non_conformities
+
+hr_tickets
+
+hr_ticket_messages
+
+events
+
+event_attendees
+
+notifications
+
+announcements
+
+audit_logs
+
+files
+
+etc.
+
+No crear tablas innecesarias.
+
+Aplicar:
+
+Primary Keys
+
+Foreign Keys
+
+Indexes
+
+Unique Constraints
+
+Check Constraints
+
+Timestamps
+
+Soft delete cuando corresponda.
+
+==================================================
+27. ELIMINACIÓN
+==================================================
+
+No borrar físicamente información crítica.
+
+Para empleados:
+
+status = INACTIVE
+
+Para documentos:
+
+status = CANCELLED
+
+Para usuarios:
+
+status = DISABLED
+
+La eliminación física debe estar limitada a operaciones administrativas específicas.
+
+==================================================
+28. DISEÑO VISUAL
+==================================================
+
+Tomar como referencia conceptual las capturas proporcionadas.
+
+La aplicación actual de referencia tiene:
+
+- Sidebar lateral
+- Header
+- Tarjetas
+- Calendario
+- Lista de organización
+- Módulo de documentos
+- Visor PDF
+
+Quiero conservar esa lógica porque funciona bien, pero hacerla mucho más moderna.
+
+Diseño:
+
+- Profesional
+- Corporativo
+- Limpio
+- Mucho espacio en blanco
+- Bordes suaves
+- Sombras muy sutiles
+- Iconografía consistente
+- Tipografía moderna
+- Excelente jerarquía visual
+- Responsive
+
+No quiero una interfaz recargada.
+
+No utilizar colores excesivamente saturados.
+
+La plataforma debe poder personalizar colores por empresa.
+
+==================================================
+29. SIDEBAR EMPLEADO
+==================================================
+
+Inicio
+
+Mis recibos
+
+Mis documentos
+
+Consultas a RRHH
+
+Calendario
+
+Cumpleaños
+
+Comunicaciones
+
+Mi perfil
+
+Configuración
+
+==================================================
+30. SIDEBAR RRHH
+==================================================
+
+Inicio
+
+Empleados
+
+Recibos
+
+Documentos
+
+Consultas RRHH
+
+Eventos
+
+Cumpleaños
+
+Comunicaciones
+
+Reportes
+
+Configuración
+
+==================================================
+31. NAVEGACIÓN
+==================================================
+
+Utilizar rutas claras.
+
+Ejemplo:
+
+/login
+
+/app
+
+/app/dashboard
+
+/app/recibos
+
+/app/recibos/[id]
+
+/app/documentos
+
+/app/consultas
+
+/app/eventos
+
+/app/cumpleanos
+
+/app/comunicaciones
+
+/app/perfil
+
+/rrhh/dashboard
+
+/rrhh/empleados
+
+/rrhh/empleados/[id]
+
+/rrhh/recibos
+
+/rrhh/documentos
+
+/rrhh/consultas
+
+/rrhh/eventos
+
+/rrhh/comunicaciones
+
+/admin/dashboard
+
+/admin/tenants
+
+/admin/users
+
+etc.
+
+Podés mejorar la estructura si considerás una arquitectura superior.
+
+==================================================
+32. RESPONSIVE
+==================================================
+
+La aplicación debe ser mobile-first.
+
+En desktop:
+
+Sidebar completo.
+
+En tablet:
+
+Sidebar reducido.
+
+En mobile:
+
+Sidebar convertido en drawer.
+
+Las tablas deben adaptarse.
+
+El visor de PDF debe funcionar perfectamente en móvil.
+
+Los botones de firma deben ser fáciles de usar.
+
+==================================================
+33. UX
+==================================================
+
+Utilizar:
+
+Skeleton loaders
+
+Empty states
+
+Error states
+
+Success messages
+
+Toast notifications
+
+Confirmaciones antes de acciones críticas
+
+Modales
+
+Tooltips
+
+Breadcrumbs cuando corresponda
+
+No mostrar pantallas vacías.
+
+Ejemplo:
+
+Si no existen recibos:
+
+" todavía no tenés recibos disponibles."
+
+con una explicación clara.
+
+==================================================
+34. VALIDACIONES
+==================================================
+
+Todas las validaciones importantes deben ejecutarse en servidor.
+
+No confiar únicamente en validaciones frontend.
+
+Utilizar una solución como Zod.
+
+Validar:
+
+- emails
+- fechas
+- DNI
+- archivos
+- tamaños
+- tipos MIME
+- permisos
+- tenant
+- relaciones
+
+==================================================
+35. ARCHIVOS
+==================================================
+
+Controlar:
+
+- MIME
+- extensión
+- tamaño
+- nombre
+- malware scanning preparado para futuro
+
+No permitir subir ejecutables.
+
+Crear un File Service reutilizable.
+
+==================================================
+36. PERFORMANCE
+==================================================
+
+La plataforma puede llegar a manejar:
+
+100 empresas
+
+1.000 empresas
+
+10.000 empresas
+
+100.000 empleados
+
+La arquitectura debe contemplarlo.
+
+Agregar índices adecuados.
+
+No realizar consultas innecesarias.
+
+Evitar N+1 queries.
+
+Paginación server-side.
+
+Búsquedas eficientes.
+
+Lazy loading donde corresponda.
+
+==================================================
+37. ESCALABILIDAD
+==================================================
+
+La aplicación debe estar preparada para incorporar:
+
+Módulo de vacaciones
+
+Módulo de licencias
+
+Módulo de ausencias
+
+Módulo de asistencia
+
+Módulo de horarios
+
+Módulo de evaluaciones
+
+Módulo de capacitaciones
+
+Módulo de legajos
+
+Módulo de contratos
+
+Módulo de beneficios
+
+Módulo de onboarding
+
+Módulo de offboarding
+
+Módulo de firma digital
+
+Módulo de encuestas
+
+Módulo de nómina
+
+Módulo de IA
+
+No desarrollar estos módulos todavía.
+
+Pero la arquitectura debe permitir agregarlos sin romper lo existente.
+
+==================================================
+38. SISTEMA DE MÓDULOS
+==================================================
+
+Crear una arquitectura conceptual:
+
+Core
+│
+├── Authentication
+├── Tenants
+├── Users
+├── Roles
+├── Permissions
+├── Files
+├── Documents
+├── Notifications
+├── Audit
+│
+└── HR
+    ├── Employees
+    ├── Receipts
+    ├── HR Tickets
+    ├── Events
+    ├── Birthdays
+    └── Announcements
+
+Futuro:
+
+HR
+├── Vacations
+├── Licenses
+├── Attendance
+├── Evaluations
+├── Training
+├── Payroll
+└── AI
+
+Cada módulo debe estar desacoplado.
+
+==================================================
+39. API
+==================================================
+
+Diseñar APIs limpias.
+
+Ejemplo:
+
+GET /api/employees
+
+GET /api/employees/:id
+
+POST /api/employees
+
+PATCH /api/employees/:id
+
+GET /api/receipts
+
+POST /api/receipts
+
+POST /api/receipts/:id/sign
+
+POST /api/receipts/:id/non-conform
+
+GET /api/hr/tickets
+
+POST /api/hr/tickets
+
+POST /api/hr/tickets/:id/messages
+
+GET /api/events
+
+POST /api/events
+
+etc.
+
+Si Next.js Server Actions resulta mejor para ciertas operaciones internas, utilizarlo.
+
+No crear APIs innecesarias.
+
+==================================================
+40. SEGURIDAD
+==================================================
+
+La seguridad es prioritaria.
+
+Implementar:
+
+- RLS
+- RBAC
+- Tenant isolation
+- Server-side authorization
+- Input validation
+- Rate limiting preparado
+- CSRF protection donde corresponda
+- Secure cookies
+- Protección de archivos
+- Signed URLs
+- Audit logs
+- Password hashing mediante proveedor seguro
+- Session management
+- Protección contra IDOR
+- Protección contra privilege escalation
+
+Especial atención:
+
+Un usuario NO debe poder acceder a:
+
+/receipts/ID_DE_OTRO_EMPLEADO
+
+simplemente cambiando el ID de la URL.
+
+==================================================
+41. NOTIFICACIONES EMAIL
+==================================================
+
+Preparar servicio:
+
+NotificationService
+
+para enviar:
+
+- nuevo recibo
+- recibo pendiente
+- recibo firmado
+- recibo no conforme
+- respuesta RRHH
+- nuevo documento
+- nuevo evento
+
+Usar templates.
+
+No hardcodear emails.
+
+==================================================
+42. CRON / TAREAS PROGRAMADAS
+==================================================
+
+Preparar tareas automáticas.
+
+Ejemplos:
+
+Todos los días:
+
+- recordar recibos pendientes
+- detectar cumpleaños
+- detectar eventos próximos
+- generar notificaciones
+
+Arquitectura preparada para cron jobs.
+
+==================================================
+43. REPORTES
+==================================================
+
+RRHH debe poder ver:
+
+Cantidad de empleados
+
+Recibos publicados
+
+Recibos pendientes
+
+Firmados
+
+No conformes
+
+Consultas abiertas
+
+Actividad
+
+Filtros:
+
+- período
+- departamento
+- estado
+- empleado
+
+Preparar exportación:
+
+CSV
+
+Excel
+
+PDF
+
+No necesariamente implementar todos inicialmente si no es necesario para el MVP.
+
+==================================================
+44. ESTADOS Y WORKFLOWS
+==================================================
+
+No manejar estados como simples strings descontrolados.
+
+Crear enums/constants.
+
+Ejemplo:
+
+ReceiptStatus
+
+PENDING
+SIGNED
+NON_CONFORMING
+EXPIRED
+CANCELLED
+
+TicketStatus
+
+OPEN
+IN_PROGRESS
+ANSWERED
+CLOSED
+
+EmployeeStatus
+
+ACTIVE
+INACTIVE
+SUSPENDED
+
+==================================================
+45. TESTING
+==================================================
+
+Implementar:
+
+Unit tests
+
+Integration tests
+
+E2E tests
+
+Casos críticos:
+
+1. Usuario Empresa A no puede ver Empresa B.
+
+2. Empleado no puede ver recibo de otro empleado.
+
+3. Empleado puede firmar su recibo.
+
+4. Empleado puede marcar no conformidad.
+
+5. RRHH recibe notificación.
+
+6. Documento privado no es accesible públicamente.
+
+7. Usuario sin permisos no puede administrar empleados.
+
+8. Usuario desactivado no puede ingresar.
+
+==================================================
+46. SEED / DATOS DEMO
+==================================================
+
+Crear seed de desarrollo.
+
+Ejemplo:
+
+Super Admin
+
+Empresa Demo
+
+Administrador RRHH
+
+2 usuarios RRHH
+
+10 empleados
+
+Departamentos
+
+Puestos
+
+Recibos de ejemplo
+
+Eventos
+
+Cumpleaños
+
+Consultas
+
+Documentos
+
+Esto permitirá probar todo el sistema sin cargar datos manualmente.
+
+==================================================
+47. LOGO / BRANDING
+==================================================
+
+La plataforma debe tener un nombre provisional configurable.
+
+No hardcodear el nombre del producto.
+
+Crear configuración:
+
+platform_name
+
+tenant_name
+
+tenant_logo
+
+primary_color
+
+secondary_color
+
+Esto permitirá convertirlo posteriormente en un SaaS comercial.
+
+==================================================
+48. ESTRUCTURA DE CÓDIGO
+==================================================
+
+Quiero una estructura profesional.
+
+Ejemplo conceptual:
+
+src/
+  app/
+  components/
+  modules/
+    auth/
+    tenants/
+    employees/
+    receipts/
+    documents/
+    hr-tickets/
+    events/
+    notifications/
+    audit/
+  lib/
+  services/
+  repositories/
+  types/
+  validations/
+  hooks/
+
+No mezclar lógica de negocio con componentes visuales.
+
+Crear servicios reutilizables.
+
+Ejemplo:
+
+ReceiptService
+
+EmployeeService
+
+DocumentService
+
+NotificationService
+
+AuditService
+
+TenantService
+
+etc.
+
+==================================================
+49. REGLA FUNDAMENTAL PARA CURSOR
+==================================================
+
+NO quiero que generes cientos de archivos sin analizar primero la arquitectura.
+
+Primero:
+
+1. Analizar requerimientos.
+2. Definir arquitectura.
+3. Definir estructura de carpetas.
+4. Definir modelo de datos.
+5. Definir relaciones.
+6. Definir seguridad.
+7. Definir sistema multi-tenant.
+8. Definir roles y permisos.
+9. Definir módulos.
+10. Definir estrategia de testing.
+
+Luego comenzar el desarrollo.
+
+==================================================
+50. FORMA DE TRABAJO
+==================================================
+
+Trabajá por fases.
+
+FASE 1
+Arquitectura base
+
+FASE 2
+Autenticación
+
+FASE 3
+Multi-tenancy
+
+FASE 4
+Usuarios y roles
+
+FASE 5
+Empleados
+
+FASE 6
+Documentos
+
+FASE 7
+Recibos
+
+FASE 8
+Firma / conformidad
+
+FASE 9
+RRHH
+
+FASE 10
+Eventos y cumpleaños
+
+FASE 11
+Notificaciones
+
+FASE 12
+Auditoría
+
+FASE 13
+Dashboard
+
+FASE 14
+Testing
+
+FASE 15
+Optimización
+
+No avances ciegamente.
+
+Después de cada fase:
+
+- verificar compilación
+- verificar tipos
+- ejecutar tests
+- corregir errores
+- revisar seguridad
+- continuar
+
+==================================================
+51. IMPORTANTE SOBRE LA BASE DE DATOS
+==================================================
+
+Antes de escribir código, generá el esquema completo de PostgreSQL.
+
+Quiero:
+
+- tablas
+- relaciones
+- índices
+- enums
+- constraints
+- RLS
+- triggers si corresponden
+
+Especialmente:
+
+tenant_id
+
+Debe estar correctamente propagado.
+
+==================================================
+52. IMPORTANTE SOBRE SUPABASE
+==================================================
+
+Si utilizamos Supabase:
+
+Implementar correctamente:
+
+Auth
+
+Postgres
+
+Storage
+
+RLS
+
+No utilizar la service_role key en frontend.
+
+Nunca exponer credenciales privadas.
+
+Separar:
+
+PUBLIC ENV
+
+SERVER ENV
+
+SECRET ENV
+
+==================================================
+53. EXPERIENCIA DEL EMPLEADO
+==================================================
+
+El empleado debe sentir que tiene:
+
+"Mi espacio dentro de la empresa"
+
+Al ingresar debe poder entender inmediatamente:
+
+¿Qué tengo pendiente?
+
+¿Qué recibos tengo?
+
+¿RRHH me respondió?
+
+¿Qué eventos tengo?
+
+¿Hay cumpleaños?
+
+¿Hay comunicaciones nuevas?
+
+Por eso el dashboard debe priorizar acciones pendientes.
+
+==================================================
+54. EXPERIENCIA DE RRHH
+==================================================
+
+RRHH debe poder saber inmediatamente:
+
+¿Qué empleados tengo?
+
+¿Quién no firmó?
+
+¿Quién firmó no conforme?
+
+¿Qué consultas están abiertas?
+
+¿Qué documentos faltan?
+
+¿Qué eventos hay?
+
+¿Qué actividad ocurrió?
+
+La información crítica debe estar a uno o dos clics.
+
+==================================================
+55. DISEÑO DE LA PANTALLA DE RECIBO
+==================================================
+
+Quiero una experiencia similar a la captura proporcionada:
+
+Panel izquierdo:
+
+Listado de recibos.
+
+Ejemplo:
+
+RECIBO DE HABERES
+08/2026
+PENDIENTE
+
+RECIBO DE HABERES
+07/2026
+FIRMADO
+
+RECIBO DE HABERES
+06/2026
+FIRMADO NO CONFORME
+
+Panel derecho:
+
+Visor PDF.
+
+Toolbar:
+
+Zoom -
+Zoom +
+Página
+Pantalla completa
+
+Botones:
+
+[Firmar en conformidad]
+
+[Firmar NO en conformidad]
+
+==================================================
+56. DISEÑO DE ESTADOS
+==================================================
+
+Utilizar badges visuales.
+
+PENDIENTE
+
+FIRMADO
+
+NO CONFORME
+
+VENCIDO
+
+ANULADO
+
+Los estados deben ser fácilmente identificables pero sin depender únicamente del color.
+
+==================================================
+57. FUTURO: IA
+==================================================
+
+Dejar preparada la arquitectura para incorporar IA posteriormente.
+
+Ejemplos:
+
+Asistente RRHH
+
+Empleado pregunta:
+
+"¿Cuántos días de vacaciones tengo?"
+
+"¿Cómo solicito una licencia?"
+
+"¿Qué dice mi recibo?"
+
+"¿Cuándo cobro?"
+
+"¿Dónde está mi contrato?"
+
+IA para RRHH:
+
+- detectar anomalías
+- resumir consultas
+- clasificar tickets
+- analizar documentos
+- generar comunicaciones
+- asistente interno
+
+NO implementar esto todavía.
+
+Solo dejar la arquitectura preparada.
+
+==================================================
+58. FUTURO: WHATSAPP
+==================================================
+
+Dejar NotificationService preparado para integrar posteriormente:
+
+WhatsApp
+
+Ejemplos:
+
+"Tenés un nuevo recibo disponible."
+
+"RRHH respondió tu consulta."
+
+No implementar todavía.
+
+==================================================
+59. FUTURO: APP MOBILE
+==================================================
+
+La aplicación web debe utilizar una arquitectura que permita posteriormente desarrollar:
+
+iOS
+
+Android
+
+preferentemente mediante API reutilizable.
+
+==================================================
+60. CALIDAD
+==================================================
+
+Código:
+
+- limpio
+- tipado
+- documentado cuando sea necesario
+- sin duplicación
+- modular
+- escalable
+- seguro
+
+Evitar:
+
+- any innecesarios
+- código duplicado
+- lógica de negocio en componentes
+- secretos hardcodeados
+- URLs hardcodeadas
+- IDs hardcodeados
+- permisos solamente frontend
+- acceso directo inseguro a Storage
+
+==================================================
+61. ENTREGABLE INICIAL
+==================================================
+
+Antes de comenzar a programar quiero que me presentes:
+
+1. Arquitectura general.
+2. Diagrama conceptual.
+3. Estructura de carpetas.
+4. Modelo de datos.
+5. Relaciones.
+6. Estrategia multi-tenant.
+7. Sistema de roles.
+8. Estrategia de seguridad.
+9. Flujo de autenticación.
+10. Roadmap de implementación.
+11. Dependencias necesarias.
+12. Variables de entorno necesarias.
+13. Estrategia de testing.
+
+Después de eso comenzá a desarrollar.
+
+==================================================
+62. CRITERIO DE DISEÑO
+==================================================
+
+La aplicación de referencia que te proporciono visualmente representa el concepto funcional actual:
+
+- dashboard
+- documentos
+- calendario
+- cumpleaños
+- organización
+- visor de documentos
+- firma
+- consulta a RRHH
+
+No copies literalmente su diseño.
+
+Utilizala únicamente como referencia de UX y funcionalidades.
+
+El producto final debe parecer un SaaS moderno, premium y profesional.
+
+==================================================
+63. REGLA FINAL
+==================================================
+
+Pensá este proyecto como si fuera un producto SaaS que eventualmente será vendido a cientos o miles de empresas.
+
+NO como una aplicación interna hecha para una sola empresa.
+
+Todo debe estar diseñado para:
+
+Multi-tenant
+Multiempresa
+Multiusuario
+Multirol
+Permisos
+Auditoría
+Seguridad
+Escalabilidad
+Modularidad
+
+El primer módulo es:
+
+"Recibos y portal del empleado"
+
+Pero el verdadero producto es:
+
+"Plataforma integral de Recursos Humanos".
+
+Comenzá ahora por la arquitectura y el modelo de datos.
+
+NO empieces creando pantallas hasta definir correctamente la arquitectura.
+
+Lo estructuraría como:
+                    ┌─────────────────────┐
+                    │    PLATAFORMA SaaS  │
+                    └──────────┬──────────┘
+                               │
+             ┌─────────────────┼─────────────────┐
+             │                 │                 │
+        EMPRESA A         EMPRESA B         EMPRESA C
+             │                 │                 │
+        ┌────┴────┐       ┌────┴────┐       ┌────┴────┐
+        │         │       │         │       │         │
+       RRHH    EMPLEADOS  RRHH   EMPLEADOS  RRHH   EMPLEADOS
+        │         │
+        │         ├── Recibos
+        │         ├── Documentos
+        │         ├── Consultas
+        │         ├── Eventos
+        │         ├── Cumpleaños
+        │         └── Comunicaciones
+        │
+        └── Administración
+
+Y en el núcleo:
+                    CORE
+                     │
+       ┌─────────────┼──────────────┐
+       │             │              │
+   Usuarios       Tenants       Permisos
+       │             │              │
+       ├─────────────┼──────────────┤
+       │             │              │
+   Documentos    Auditoría    Notificaciones
+                     │
+                     │
+                  HR CORE
+                     │
+      ┌──────────────┼──────────────┐
+      │              │              │
+  Empleados       Recibos       Consultas
+      │              │              │
+      │              │              ├── Eventos
+      │              │              ├── Cumpleaños
+      │              │              └── Comunicaciones
+      │
+      └──── futuro ──────────────────────┐
+                                         │
+          Vacaciones / Licencias /       │
+          Asistencia / Evaluaciones /    │
+          Legajos / IA / etc.            │
+
+HR Core.
+
+Y hay otro punto que considero fundamental
+
+Para los recibos, yo separaría Documento de Recibo.
+
+Un recibo sería un tipo especial de documento:
+
+DOCUMENT
+   │
+   ├── type = RECEIPT
+   │
+   ├── employee
+   ├── period
+   ├── PDF
+   ├── status
+   └── signature
+
+Pero mañana podrías tener:
+
+DOCUMENT
+   ├── RECEIPT
+   ├── CONTRACT
+   ├── CERTIFICATE
+   ├── POLICY
+   ├── NOTICE
+   ├── LICENSE
+   └── OTHER
+
+
+La relación ideal sería:
+
+                    PLATAFORMA RRHH
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+      EMPLEADOS          FICHAJE         DOCUMENTOS
+          │                │                │
+          │            Asistencia          │
+          │                │                │
+          └────────────┬───┘                │
+                       ↓                    │
+               LIQUIDACIÓN DE SUELDOS       │
+                       │                    │
+             ┌─────────┼─────────┐          │
+             ↓         ↓         ↓          ↓
+          Sueldo    Descuentos  Aportes   RECIBO
+             │                              │
+             └──────────────────────────────┘
+
+==================================================
+64. MÓDULO DE LIQUIDACIÓN DE SUELDOS
+==================================================
+
+IMPORTANTE:
+
+La plataforma debe quedar preparada para incorporar un motor de liquidación de sueldos profesional, especialmente orientado al contexto laboral argentino.
+
+Este módulo debe poder existir inicialmente como módulo avanzado/futuro, pero la arquitectura DEBE contemplarlo desde el comienzo.
+
+No diseñar el sistema de recibos de manera que luego sea imposible relacionarlo con una liquidación.
+
+La relación conceptual debe ser:
+
+EMPLEADO
+    ↓
+CONDICIONES LABORALES
+    ↓
+CONVENIO / CCT
+    ↓
+CATEGORÍA
+    ↓
+ESCALA SALARIAL
+    ↓
+NOVEDADES
+    ↓
+ASISTENCIA
+    ↓
+HORAS EXTRAS
+    ↓
+LIQUIDACIÓN
+    ↓
+RECIBO
+    ↓
+FIRMA / CONFORMIDAD
+
+
+==================================================
+65. CONVENIOS COLECTIVOS DE TRABAJO
+==================================================
+
+Crear una arquitectura parametrizable para manejar distintos Convenios Colectivos de Trabajo (CCT).
+
+NO hardcodear reglas de un único convenio.
+
+Una empresa debe poder seleccionar:
+
+- Convenio
+- Actividad
+- Categoría
+- Rama
+- Zona/región cuando corresponda
+- Escala salarial
+- Vigencia
+
+Ejemplo conceptual:
+
+Empresa
+↓
+CCT 130/75
+↓
+Categoría
+↓
+Administrativo A
+↓
+Escala vigente
+↓
+Sueldo básico
+
+
+==================================================
+66. MOTOR DE REGLAS DE LIQUIDACIÓN
+==================================================
+
+Crear un motor de reglas configurable.
+
+NO implementar las reglas directamente dentro de componentes de React.
+
+La lógica debe estar separada en un:
+
+Payroll Engine
+
+Ejemplo conceptual:
+
+PayrollEngine
+    ├── BasicSalaryCalculator
+    ├── SeniorityCalculator
+    ├── OvertimeCalculator
+    ├── AttendanceCalculator
+    ├── HolidayCalculator
+    ├── PresentismCalculator
+    ├── BonusCalculator
+    ├── DeductionCalculator
+    ├── ContributionCalculator
+    └── TaxCalculator
+
+El motor debe permitir incorporar nuevas reglas sin modificar todo el sistema.
+
+
+==================================================
+67. VIGENCIA DE LAS REGLAS
+==================================================
+
+Las reglas laborales y salariales cambian con el tiempo.
+
+Por eso:
+
+NUNCA sobrescribir una regla histórica.
+
+Todas las escalas, conceptos y reglas deben tener:
+
+effective_from
+effective_to
+
+Ejemplo:
+
+Escala salarial:
+
+CCT 130/75
+Categoría Administrativo A
+
+01/08/2026
+$X
+
+01/09/2026
+$Y
+
+01/10/2026
+$Z
+
+Si se vuelve a liquidar agosto de 2026, debe utilizarse la escala correspondiente a agosto.
+
+Esto es CRÍTICO para auditoría e historial.
+
+
+==================================================
+68. CONCEPTOS DE LIQUIDACIÓN
+==================================================
+
+Preparar un catálogo de conceptos.
+
+Ejemplos:
+
+HABERES
+
+- Sueldo básico
+- Antigüedad
+- Presentismo
+- Horas extras
+- Horas nocturnas
+- Horas feriado
+- Adicional por título
+- Adicional por función
+- Adicional por zona
+- Comisiones
+- Bonificaciones
+- Premios
+- Viáticos cuando corresponda
+- Otros conceptos remunerativos
+- Otros conceptos no remunerativos
+
+DESCUENTOS
+
+- Jubilación
+- Obra social
+- PAMI
+- Cuota sindical
+- Otros descuentos
+- Impuesto a las ganancias cuando corresponda
+- Embargos
+- Anticipos
+- Otros conceptos
+
+No asumir que todos los conceptos aplican a todos los convenios.
+
+Cada concepto debe poder tener reglas configurables.
+
+
+==================================================
+69. CATEGORÍAS LABORALES
+==================================================
+
+Cada empleado podrá tener:
+
+- Convenio
+- Categoría
+- Rama
+- Nivel
+- Fecha de ingreso a categoría
+- Sueldo básico
+- Modalidad laboral
+- Jornada
+- Horas semanales
+- Tipo de contratación
+
+Debe poder existir historial.
+
+Ejemplo:
+
+Empleado
+
+2024:
+Categoría A
+
+2025:
+Categoría B
+
+2026:
+Categoría C
+
+La liquidación histórica debe respetar la categoría vigente en cada período.
+
+
+==================================================
+70. ANTIGÜEDAD
+==================================================
+
+Preparar motor para calcular antigüedad.
+
+Debe permitir reglas configurables según convenio.
+
+Ejemplo:
+
+Antigüedad =
+años computables × porcentaje
+
+Pero NO asumir una única fórmula.
+
+La regla debe pertenecer al convenio / concepto.
+
+
+==================================================
+71. HORAS EXTRAS
+==================================================
+
+Preparar cálculo de:
+
+- Horas extras
+- Horas al 50%
+- Horas al 100%
+- Horas nocturnas
+- Horas feriados
+- Horas especiales según convenio
+
+Las horas pueden provenir del sistema de fichaje.
+
+Ejemplo:
+
+Fichaje:
+
+Entrada 08:00
+Salida 19:00
+
+Jornada:
+
+08:00 - 17:00
+
+Resultado:
+
+2 horas adicionales
+
+El sistema debe generar una NOVEDAD para liquidación.
+
+IMPORTANTE:
+
+No liquidar automáticamente una hora extra simplemente porque el empleado fichó más tarde.
+
+Debe existir una configuración que determine si:
+
+- se calcula automáticamente
+- requiere aprobación del supervisor
+- requiere aprobación de RRHH
+
+
+==================================================
+72. NOVEDADES DE LIQUIDACIÓN
+==================================================
+
+Crear módulo:
+
+/rrhh/liquidacion/novedades
+
+Las novedades pueden ser:
+
+- Horas extras
+- Ausencias
+- Licencias
+- Bonificaciones
+- Descuentos
+- Adelantos
+- Premios
+- Comisiones
+- Otros
+
+Cada novedad debe tener:
+
+- empleado
+- período
+- concepto
+- cantidad
+- unidad
+- importe si corresponde
+- observación
+- origen
+- usuario que la cargó
+- fecha
+- estado
+
+Estados:
+
+PENDIENTE
+APROBADA
+RECHAZADA
+LIQUIDADA
+
+
+==================================================
+73. PROCESO DE LIQUIDACIÓN
+==================================================
+
+Crear un workflow.
+
+Ejemplo:
+
+1. Seleccionar empresa
+2. Seleccionar período
+3. Seleccionar tipo de liquidación
+4. Obtener empleados
+5. Obtener condiciones laborales
+6. Obtener convenio
+7. Obtener categoría
+8. Obtener escala vigente
+9. Obtener novedades
+10. Obtener asistencia
+11. Obtener horas extras
+12. Ejecutar Payroll Engine
+13. Generar borrador
+14. Revisar
+15. Aprobar
+16. Cerrar liquidación
+17. Generar recibos
+18. Publicar recibos
+19. Notificar empleados
+
+NO permitir modificar una liquidación cerrada.
+
+Para corregirla:
+
+crear una nueva liquidación / ajuste / rectificación según corresponda.
+
+
+==================================================
+74. TIPOS DE LIQUIDACIÓN
+==================================================
+
+Preparar:
+
+- Mensual
+- SAC
+- Vacaciones
+- Final
+- Ajuste
+- Extraordinaria
+
+No necesariamente implementar todas en el MVP.
+
+Pero el modelo debe contemplarlas.
+
+
+==================================================
+75. PRE-LIQUIDACIÓN
+==================================================
+
+Antes de cerrar una liquidación mostrar:
+
+EMPLEADOS
+156
+
+LIQUIDADOS
+150
+
+PENDIENTES
+6
+
+ERRORES
+2
+
+ALERTAS
+4
+
+Ejemplos:
+
+⚠ Empleado sin categoría
+
+⚠ Empleado sin convenio
+
+⚠ Escala salarial no encontrada
+
+⚠ Falta novedad
+
+⚠ Horas extras sin aprobar
+
+Esto permitirá detectar errores antes de generar recibos.
+
+
+==================================================
+76. SIMULADOR DE SUELDO
+==================================================
+
+Crear eventualmente:
+
+/rrhh/liquidacion/simulador
+
+Permitir seleccionar empleado y mostrar:
+
+Sueldo básico
+
++
+Antigüedad
+
++
+Adicionales
+
++
+Horas extras
+
++
+Bonificaciones
+
+=
+Total remunerativo
+
++
+No remunerativos
+
+=
+Total bruto
+
+-
+Descuentos
+
+=
+Neto estimado
+
+IMPORTANTE:
+
+Mostrar claramente:
+
+"Liquidación estimada"
+
+hasta que la liquidación sea oficialmente cerrada.
+
+
+==================================================
+77. HISTORIAL DE LIQUIDACIONES
+==================================================
+
+Crear:
+
+/rrhh/liquidacion
+
+Mostrar:
+
+Período
+Tipo
+Cantidad empleados
+Estado
+Fecha
+Usuario
+Acciones
+
+Estados:
+
+BORRADOR
+EN_REVISION
+APROBADA
+CERRADA
+ANULADA
+
+Permitir consultar liquidaciones históricas.
+
+
+==================================================
+78. INTEGRACIÓN LIQUIDACIÓN → RECIBO
+==================================================
+
+Una vez cerrada una liquidación:
+
+El sistema debe poder generar automáticamente los recibos correspondientes.
+
+Relación:
+
+payroll_run
+    ↓
+payroll_employee_result
+    ↓
+receipt
+    ↓
+document
+    ↓
+employee
+    ↓
+signature
+
+El recibo generado debe conservar referencia a la liquidación que lo originó.
+
+
+==================================================
+79. IMPORTACIÓN DE ESCALAS
+==================================================
+
+Preparar sistema para cargar escalas salariales mediante:
+
+- carga manual
+- CSV
+- Excel
+- API en el futuro
+
+No depender de datos hardcodeados.
+
+Ejemplo:
+
+Convenio
+Categoría
+Período
+Básico
+Adicionales
+Observaciones
+
+Debe existir historial de versiones.
+
+
+==================================================
+80. IMPORTANTE: ACTUALIZACIÓN DE LEGISLACIÓN
+==================================================
+
+El sistema debe estar preparado para que las reglas laborales y tributarias puedan actualizarse sin modificar el código principal.
+
+Separar:
+
+DATOS
+de
+REGLAS
+de
+CÓDIGO
+
+Cuando corresponda, dejar preparada una arquitectura para actualizar:
+
+- escalas
+- porcentajes
+- topes
+- conceptos
+- aportes
+- contribuciones
+- reglas tributarias
+
+No asumir que un porcentaje permanecerá fijo.
+
+
+==================================================
+81. RESPONSABILIDAD DE LA LIQUIDACIÓN
+==================================================
+
+La plataforma debe permitir automatización, pero debe existir una instancia de revisión humana.
+
+No diseñar el sistema suponiendo que toda liquidación puede ejecutarse sin supervisión.
+
+Antes de cerrar:
+
+RRHH debe poder revisar:
+
+- empleados
+- conceptos
+- importes
+- descuentos
+- novedades
+- alertas
+
+Y aprobar la liquidación.
+
+
+==================================================
+82. MÓDULO DE FICHAJE / CONTROL DE ASISTENCIA
+==================================================
+
+El sistema debe quedar preparado para que los empleados puedan fichar desde su teléfono celular.
+
+Este módulo debe integrarse posteriormente con:
+
+- asistencia
+- horarios
+- ausencias
+- horas extras
+- licencias
+- liquidación de sueldos
+
+
+==================================================
+83. FICHAJE DESDE CELULAR
+==================================================
+
+Crear una arquitectura para:
+
+/empleado/fichaje
+
+La pantalla debe ser extremadamente sencilla.
+
+Ejemplo:
+
+---------------------------------
+
+Buenos días, Juan
+
+HOY
+Jueves 10 de septiembre
+
+Horario:
+
+08:00 - 17:00
+
+---------------------------------
+
+       [ FICHAR ENTRADA ]
+
+---------------------------------
+
+Estado:
+
+Entrada registrada
+08:02
+
+---------------------------------
+
+       [ FICHAR SALIDA ]
+
+---------------------------------
+
+Mostrar el estado actual.
+
+Ejemplo:
+
+🟢 Jornada iniciada
+
+Entrada:
+08:02
+
+Tiempo trabajado:
+04:35
+
+
+==================================================
+84. MÉTODOS DE FICHAJE
+==================================================
+
+La arquitectura debe permitir varios métodos.
+
+Inicialmente:
+
+1. Celular
+2. QR
+3. Web
+
+Futuro:
+
+- NFC
+- Terminal
+- Tablet
+- Biometría
+- Reconocimiento facial, únicamente si resulta legal y técnicamente conveniente
+
+NO acoplar el sistema a un único método.
+
+
+==================================================
+85. GEOLOCALIZACIÓN
+==================================================
+
+El fichaje móvil puede utilizar geolocalización para verificar que el empleado se encuentra dentro de una zona autorizada.
+
+Ejemplo:
+
+Empresa:
+
+Radio permitido:
+150 metros
+
+Empleado intenta fichar:
+
+GPS:
+dentro de zona → permitido
+
+fuera de zona → rechazado o enviado a revisión según configuración.
+
+
+==================================================
+86. GEO-FENCING CONFIGURABLE
+==================================================
+
+Cada empresa puede tener:
+
+- una o varias sedes
+- ubicación
+- radio permitido
+
+Ejemplo:
+
+SEDE CENTRAL
+
+Latitud
+Longitud
+Radio: 200 metros
+
+SUCURSAL NORTE
+
+Latitud
+Longitud
+Radio: 100 metros
+
+Un empleado puede tener una o varias sedes autorizadas.
+
+
+==================================================
+87. PRIVACIDAD DE GEOLOCALIZACIÓN
+==================================================
+
+MUY IMPORTANTE:
+
+No realizar seguimiento permanente del empleado.
+
+La geolocalización debe utilizarse únicamente cuando sea necesario para registrar el fichaje.
+
+Guardar:
+
+- ubicación del fichaje
+- fecha
+- hora
+- precisión cuando esté disponible
+- método de fichaje
+
+No almacenar tracking continuo.
+
+La arquitectura debe contemplar configuraciones de privacidad y cumplimiento normativo aplicable.
+
+
+==================================================
+88. ANTI-FRAUDE DE FICHAJE
+==================================================
+
+Preparar mecanismos para detectar:
+
+- fichajes duplicados
+- fichajes imposibles
+- cambios anormales de ubicación
+- dispositivo no autorizado
+- horarios incompatibles
+- múltiples fichajes consecutivos
+- manipulación de timestamps
+
+No confiar únicamente en el GPS del teléfono.
+
+Registrar:
+
+- timestamp del servidor
+- método
+- dispositivo
+- user agent
+- ubicación si corresponde
+- IP
+- precisión GPS
+
+
+==================================================
+89. FICHAJE OFFLINE
+==================================================
+
+Considerar que un empleado puede estar en una zona sin Internet.
+
+Preparar la arquitectura para:
+
+1. registrar temporalmente el fichaje en el dispositivo
+2. almacenar la hora local
+3. sincronizar posteriormente
+4. registrar que fue un fichaje offline
+5. validar el timestamp del servidor al sincronizar
+
+NO implementar necesariamente en el primer MVP, pero dejar la arquitectura preparada.
+
+
+==================================================
+90. QR DE FICHAJE
+==================================================
+
+Crear eventualmente una modalidad de fichaje mediante QR.
+
+Ejemplo:
+
+En la empresa existe una pantalla/tablet:
+
+"ESCANEÁ PARA FICHAR"
+
+El empleado escanea el QR desde su celular.
+
+El sistema valida:
+
+- usuario
+- empresa
+- sede
+- horario
+- token temporal
+
+El QR debe cambiar periódicamente.
+
+NO utilizar un QR estático que pueda fotografiarse y utilizarse posteriormente desde cualquier lugar.
+
+
+==================================================
+91. HORARIOS
+==================================================
+
+Crear estructura:
+
+work_schedules
+
+Ejemplo:
+
+Lunes
+08:00 - 17:00
+
+Martes
+08:00 - 17:00
+
+Miércoles
+08:00 - 17:00
+
+etc.
+
+Permitir:
+
+- jornada fija
+- jornada flexible
+- turnos
+- horarios especiales
+
+
+==================================================
+92. TURNOS
+==================================================
+
+Preparar:
+
+Turno mañana
+
+06:00 - 14:00
+
+Turno tarde
+
+14:00 - 22:00
+
+Turno noche
+
+22:00 - 06:00
+
+Un empleado debe poder tener asignado un turno.
+
+El sistema debe contemplar turnos que atraviesen medianoche.
+
+
+==================================================
+93. REGISTRO DE ASISTENCIA
+==================================================
+
+Crear:
+
+/empleado/asistencia
+
+Mostrar:
+
+Fecha
+Entrada
+Salida
+Horas trabajadas
+Horario esperado
+Diferencia
+Estado
+
+Ejemplo:
+
+10/09/2026
+08:02
+17:04
+09:02
+08:00-17:00
++04 min
+Normal
+
+
+==================================================
+94. AUSENCIAS Y TARDANZAS
+==================================================
+
+Preparar estados:
+
+PRESENTE
+AUSENTE
+TARDANZA
+SALIDA_ANTICIPADA
+LICENCIA
+FERIADO
+FRANCO
+JUSTIFICADO
+
+No asumir que una ausencia automáticamente implica descuento.
+
+Debe existir un sistema de novedades/aprobaciones.
+
+
+==================================================
+95. APROBACIÓN DE ASISTENCIA
+==================================================
+
+El supervisor o RRHH debe poder revisar:
+
+- tardanzas
+- ausencias
+- horas extras
+- fichajes manuales
+
+Ejemplo:
+
+Empleado:
+
+Juan
+
+09/09
+
+Horas extras:
+2:30
+
+Estado:
+
+PENDIENTE DE APROBACIÓN
+
+Supervisor:
+
+[APROBAR]
+
+[RECHAZAR]
+
+Una vez aprobada puede pasar al proceso de liquidación.
+
+
+==================================================
+96. CORRECCIÓN DE FICHAJES
+==================================================
+
+Un empleado puede solicitar corrección.
+
+Ejemplo:
+
+"Me olvidé de fichar la salida."
+
+Crear solicitud:
+
+Fecha
+Hora real
+Motivo
+
+Estado:
+
+PENDIENTE
+APROBADA
+RECHAZADA
+
+RRHH/supervisor decide.
+
+
+==================================================
+97. INTEGRACIÓN FICHAJE → LIQUIDACIÓN
+==================================================
+
+El sistema debe poder transformar datos de asistencia en novedades de liquidación.
+
+Ejemplo:
+
+Empleado:
+
+Juan
+
+Horario:
+08:00 - 17:00
+
+Fichaje:
+08:00 - 19:00
+
+Resultado:
+
+Horas normales:
+9
+
+Horas adicionales:
+2
+
+Luego:
+
+Horas adicionales
+↓
+Aprobación
+↓
+Novedad de liquidación
+↓
+Payroll Engine
+↓
+Recibo
+
+
+==================================================
+98. DASHBOARD DE ASISTENCIA PARA RRHH
+==================================================
+
+Crear:
+
+/rrhh/asistencia
+
+Mostrar:
+
+Presentes hoy
+
+Ausentes
+
+Tardanzas
+
+Salidas anticipadas
+
+Horas extras
+
+Fichajes pendientes
+
+Ejemplo:
+
+156 empleados
+
+142 presentes
+
+8 ausentes
+
+4 tardanzas
+
+2 licencias
+
+6 sin fichaje
+
+
+==================================================
+99. DASHBOARD DEL SUPERVISOR
+==================================================
+
+En el futuro permitir que un supervisor vea únicamente los empleados que tiene a cargo.
+
+Puede consultar:
+
+- asistencia
+- tardanzas
+- ausencias
+- horas extras
+- solicitudes
+
+Pero NO necesariamente:
+
+- sueldo
+- recibos
+- información privada de RRHH
+
+Los permisos deben ser configurables.
+
+
+==================================================
+100. APP / PWA PARA EMPLEADOS
+==================================================
+
+El sistema debe poder funcionar inicialmente como:
+
+PWA (Progressive Web App)
+
+Esto permitirá que el empleado pueda:
+
+- abrirla desde el celular
+- agregarla a pantalla de inicio
+- fichar
+- consultar recibos
+- consultar eventos
+- consultar cumpleaños
+- consultar RRHH
+
+sin necesidad de desarrollar inmediatamente una aplicación nativa.
+
+La arquitectura debe permitir desarrollar posteriormente:
+
+iOS
+Android
+
+
+==================================================
+101. NOTIFICACIONES RELACIONADAS CON ASISTENCIA
+==================================================
+
+Preparar:
+
+"Recordatorio: todavía no registraste tu entrada."
+
+"Tu fichaje fue registrado."
+
+"Tenés una solicitud de corrección pendiente."
+
+"Tu hora extra fue aprobada."
+
+"Tu hora extra fue rechazada."
+
+
+==================================================
+102. MODELO DE DATOS DE ASISTENCIA
+==================================================
+
+Preparar como mínimo:
+
+work_schedules
+
+work_schedule_days
+
+employee_work_schedules
+
+work_locations
+
+attendance_records
+
+attendance_events
+
+attendance_adjustments
+
+overtime_records
+
+attendance_approvals
+
+attendance_devices
+
+etc.
+
+Todas las tablas deben tener tenant_id cuando corresponda.
+
+
+==================================================
+103. MODELO DE DATOS DE LIQUIDACIÓN
+==================================================
+
+Preparar como mínimo:
+
+collective_agreements
+
+agreement_versions
+
+salary_scales
+
+salary_scale_items
+
+employee_agreements
+
+employee_categories
+
+payroll_concepts
+
+payroll_rules
+
+payroll_runs
+
+payroll_run_employees
+
+payroll_items
+
+payroll_novelties
+
+payroll_approvals
+
+payroll_adjustments
+
+etc.
+
+Mantener historial y vigencia.
+
+
+==================================================
+104. RELACIÓN ENTRE MÓDULOS
+==================================================
+
+La arquitectura final debe permitir:
+
+EMPLEADO
+   ↓
+CONVENIO
+   ↓
+CATEGORÍA
+   ↓
+HORARIO
+   ↓
+FICHAJES
+   ↓
+ASISTENCIA
+   ↓
+NOVEDADES
+   ↓
+LIQUIDACIÓN
+   ↓
+RECIBO
+   ↓
+FIRMA
+   ↓
+AUDITORÍA
+
+
+==================================================
+105. FUTURO: INTEGRACIONES EXTERNAS
+==================================================
+
+Dejar preparada la arquitectura para integrar posteriormente sistemas externos relacionados con:
+
+- organismos laborales
+- sistemas impositivos
+- bancos
+- entidades sindicales
+- obras sociales
+- proveedores de firma digital
+- sistemas contables
+- sistemas de asistencia
+- APIs externas
+
+NO implementar integraciones que no sean necesarias para el MVP.
+
+==================================================
+106. PRINCIPIO FUNDAMENTAL DEL MÓDULO DE SUELDOS
+==================================================
+
+NO construir una "calculadora de sueldos".
+
+Construir un verdadero:
+
+PAYROLL ENGINE
+
+parametrizable.
+
+El sistema debe poder soportar diferentes empresas con:
+
+- distintos convenios
+- distintas categorías
+- distintas jornadas
+- distintos conceptos
+- distintas reglas
+- distintas escalas
+- distintas sedes
+- distintas configuraciones
+
+sin modificar el código fuente para cada empresa.
+
+
+==================================================
+107. PRINCIPIO FUNDAMENTAL DEL FICHAJE
+==================================================
+
+NO construir simplemente:
+
+"botón ENTRADA / botón SALIDA".
+
+Construir un:
+
+ATTENDANCE ENGINE
+
+que pueda evolucionar hacia:
+
+- horarios
+- turnos
+- asistencia
+- ausencias
+- tardanzas
+- horas extras
+- licencias
+- vacaciones
+- feriados
+- aprobaciones
+- liquidación
+
+El fichaje es solamente el mecanismo que genera eventos de asistencia.
+
+
+==================================================
+108. ROADMAP ACTUALIZADO
+==================================================
+
+Reorganizar el roadmap general de desarrollo de la siguiente manera:
+
+FASE 1
+Arquitectura Core
+
+FASE 2
+Multi-tenancy
+
+FASE 3
+Autenticación
+
+FASE 4
+Usuarios / Roles / Permisos
+
+FASE 5
+Empleados
+
+FASE 6
+Documentos
+
+FASE 7
+Recibos
+
+FASE 8
+Firma / Conformidad
+
+FASE 9
+Consultas RRHH
+
+FASE 10
+Eventos / Cumpleaños / Comunicaciones
+
+FASE 11
+Notificaciones
+
+FASE 12
+Auditoría
+
+FASE 13
+Dashboard
+
+FASE 14
+Attendance Engine
+
+FASE 15
+Fichaje móvil / PWA
+
+FASE 16
+Horarios / Turnos
+
+FASE 17
+Ausencias / Tardanzas / Horas extras
+
+FASE 18
+Novedades de liquidación
+
+FASE 19
+Payroll Engine
+
+FASE 20
+Convenios y escalas salariales
+
+FASE 21
+Pre-liquidación
+
+FASE 22
+Liquidación
+
+FASE 23
+Generación automática de recibos
+
+FASE 24
+Reportes
+
+FASE 25
+Testing integral
+
+FASE 26
+Seguridad / auditoría / performance
+
+FASE 27
+Preparación para producción
+
+
+==================================================
+109. CRITERIO FINAL DE PRODUCTO
+==================================================
+
+El objetivo final NO es crear:
+
+"un sistema para ver recibos".
+
+El objetivo es construir:
+
+"una plataforma SaaS integral de Recursos Humanos".
+
+La evolución prevista debe ser:
+
+FASE INICIAL:
+
+Portal del empleado
++
+Recibos
++
+Firma
++
+RRHH
++
+Eventos
++
+Cumpleaños
+
+
+EVOLUCIÓN:
+
++
+Asistencia
++
+Fichaje móvil
++
+Horarios
++
+Turnos
++
+Horas extras
++
+Ausencias
+
+
+EVOLUCIÓN:
+
++
+Convenios
++
+Categorías
++
+Escalas
++
+Novedades
++
+Liquidación de sueldos
+
+
+EVOLUCIÓN:
+
++
+Vacaciones
++
+Licencias
++
+Legajos
++
+Evaluaciones
++
+Capacitaciones
++
+Onboarding
++
+Offboarding
+
+
+EVOLUCIÓN:
+
++
+IA
++
+WhatsApp
++
+Firma digital
++
+Integraciones externas
++
+Aplicación móvil nativa
+
+
+El sistema debe estar arquitectónicamente preparado para toda esta evolución desde el comienzo.
+
+Hay una cosa que cambiaría del roadmap
+
+Aunque el motor de liquidación puede quedar para una segunda etapa, yo le diría a Cursor que lo tenga en cuenta desde el modelo de datos inicial.
+
+Porque mirá la potencia que puede terminar teniendo:
+
+Empleado
+
+→ pertenece a un CCT
+→ tiene categoría
+→ tiene jornada
+→ tiene horario
+→ ficha entrada/salida
+→ genera asistencia
+→ genera horas extras
+→ RRHH las aprueba
+→ pasan como novedades
+→ el motor liquida
+→ genera el recibo
+→ el empleado recibe el PDF
+→ firma
+→ queda auditado.
+
+Eso ya no es solamente un portal de empleados. Es prácticamente un ERP de RRHH especializado.
+
+Y el fichaje móvil lo haría así
+
+Para el MVP, no arrancaría con reconocimiento facial. Haría:
+
+PWA + GPS puntual + geocerca + timestamp del servidor.
+
+Por ejemplo:
+
+           CELULAR DEL EMPLEADO
+                    │
+                    ▼
+             ┌─────────────┐
+             │   FICHAR    │
+             └──────┬──────┘
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+       GPS válido        Usuario válido
+          │                   │
+          └─────────┬─────────┘
+                    ▼
+             Servidor registra
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+      Hora        GPS       Dispositivo
+                    │
+                    ▼
+               ASISTENCIA
+                    │
+          ┌─────────┴─────────┐
+          ▼                   ▼
+      Jornada              Horas extra
+                              │
+                              ▼
+                       APROBACIÓN RRHH
+                              │
+                              ▼
+                       LIQUIDACIÓN
+
+Y algo que me parece muy bueno para tu proyecto: que el fichaje pueda tener tres modalidades configurables por empresa:
+
+📱 Fichaje desde celular con GPS
+🔲 Fichaje mediante QR en la sede
+🖥️ Fichaje desde una computadora/tablet

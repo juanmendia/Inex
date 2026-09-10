@@ -1,0 +1,379 @@
+PLATAFORMA RRHH SaaS — ESTADO DEL PROYECTO
+Actualizado: 2026-09-10
+Repo: Next.js 16 + TS + Tailwind. Cliente Supabase cableado a cbubedlejrjzcdzfwnzq. GitHub: juanmendia/Inex. Migración 0001 lista, hay que correrla en SQL Editor. Falta service_role en .env.local.
+
+==================================================
+0. CÓMO LEER ESTE ARCHIVO
+==================================================
+
+[ ] pendiente
+[~] en curso
+[x] listo
+[-] fuera del MVP (arquitectura sí, código no)
+
+Después de cada fase: compilar, tipos, tests mínimos, seguridad, recién entonces avanzar.
+Este archivo se actualiza en cada sesión. Es la fuente de verdad de “qué falta”.
+
+==================================================
+1. LECTURA CLÍNICA DEL PROMPT + CAPTURAS
+==================================================
+
+Capturas = lado EMPLEADO de Mandü (Banco de La Pampa). Lado DUEÑO DEL TENANT no existe en las fotos: lo diseñamos nosotros.
+
+Login (empleado)
+- Fondo mapa / sucursales (branding tenant).
+- Usuario + clave, recuperar, ayuda, privacidad.
+- Nuestro login: email + password + recuperar. Branding por tenant (logo/colores). Mapa de sucursales = NO MVP.
+
+Dashboard empleado
+- Saludo + nombre.
+- Tarjeta documentos pendientes de firma (número).
+- Próximo feriado (días).
+- Calendario (feriados / cumpleaños / aniversarios).
+- Lista “organización” (directorio interno).
+- Frase del día = NO MVP (ruido).
+- Menú usuario: clave, email, MFA, privacidad, salir.
+
+Documentos / recibos empleado
+- Lista izquierda: tipo, período, badge PENDIENTE/BLOQUEADO, candado en firmados.
+- Visor PDF derecha: zoom, página, fullscreen.
+- Acciones: Firmar conforme / Firmar no conforme / Consultar a RRHH / Firmar documento.
+- Tabs Pendientes / Firmadas.
+
+Lado TENANT (RRHH) — no visible, obligatorio
+- KPIs: empleados, activos, recibos pendientes/firmados/no conformes, consultas abiertas.
+- CRUD empleados + ficha con tabs.
+- Carga masiva PDF + asignación a empleado/período + publicar.
+- Inbox de consultas.
+- Quién firmó / quién no / quién no conforme.
+- Eventos, comunicaciones, config empresa (logo, colores, CUIT).
+- Reportes básicos.
+
+Tres superficies (nunca mezclar en un solo layout):
+  /app/*     EMPLOYEE
+  /rrhh/*    TENANT_ADMIN / HR_ADMIN / HR_OPERATOR
+  /admin/*   SUPER_ADMIN (plataforma, no datos privados de empleados)
+
+==================================================
+2. RECORTE DE ALCANCE (si no, el prompt nunca termina)
+==================================================
+
+MVP (construir ahora, fases 1–13 + seed + tests críticos)
+- Multi-tenant real (tenant_id + RLS + checks server).
+- Auth (email/password, recuperar, sesión).
+- Roles: SUPER_ADMIN, TENANT_ADMIN, HR_ADMIN, HR_OPERATOR, EMPLOYEE.
+- Empleados CRUD + ficha.
+- Document Service + File Service (bucket privado, signed URLs).
+- Recibos: estados, visor PDF, firmar conforme / no conforme (motivo), auditoría de firma.
+- Carga masiva RRHH + publicación.
+- Consultas RRHH (tickets + mensajes).
+- Eventos + cumpleaños (sin año) + comunicaciones.
+- Notificaciones in-app (campana). Emails: servicio listo, 1–2 templates.
+- Auditoría inmutable.
+- Dashboards empleado y RRHH.
+- Config tenant (nombre, logo, colores, CUIT).
+- Panel super admin: tenants (crear/suspender).
+- Seed demo.
+- Tests: aislamiento tenant, IDOR recibos, firma, PDF privado.
+
+Arquitectura en esquema, SIN motor (tablas + enums, UI no)
+- Convenios / categorías / escalas / vigencia.
+- payroll_runs / items / novedades (FK futura receipt → payroll_run).
+- work_schedules, work_locations, attendance_records.
+- Fichaje PWA+GPS+QR: contratos de datos, no pantallas.
+
+Fuera de MVP (no construir)
+- Liquidación real / simulador / importación escalas.
+- Fichaje móvil, geocerca, QR rotativo, offline, anti-fraude UI.
+- Vacaciones, licencias, evaluaciones, onboarding, nómina completa.
+- IA, WhatsApp, SMS, SSO, MFA (prep auth), app nativa.
+- Frase del día, mapa login, descarga ZIP masiva, Excel/PDF reportes (CSV sí si es barato).
+- Firma digital certificada (nuestra es “conformidad electrónica”).
+
+Nombre de producto: configurable (PLATFORM_NAME). No hardcodear “Mandü” ni un banco.
+
+==================================================
+3. DECISIONES DE ARQUITECTURA
+==================================================
+
+Stack
+- Next.js App Router + TypeScript + Tailwind + shadcn/ui + Lucide.
+- PostgreSQL + Supabase Auth + Storage + RLS.
+- Zod en server. Server Actions para mutaciones internas; Route Handlers solo si hace falta (signed URL, cron, webhooks).
+- i18n: textos en español, keys listas para después (no i18n lib en MVP salvo que salga gratis).
+
+Multi-tenant
+- Un schema, columna tenant_id en casi todo.
+- RLS: auth.uid() → profile.tenant_id (SUPER_ADMIN bypass solo tablas de plataforma, no receipts/employees salvo permiso explícito).
+- Storage path: tenants/{tenant_id}/...
+- Middleware: sesión + rol → layout correcto. Nunca filtrar solo en UI.
+
+Documentos vs recibos
+- files: blob metadata (bucket, path, mime, size, checksum).
+- documents: contenedor (type, employee_id nullable, status, current_file_id).
+- document_versions: historial de archivos.
+- receipts: 1:1 con document (period, type, payroll_run_id nullable, due_at).
+- receipt_signatures: action CONFORM | NON_CONFORM, ip, ua, hash, reason.
+
+Módulos (carpetas, no microservicios)
+  core: auth, tenants, users, rbac, files, documents, notifications, audit
+  hr: employees, receipts, tickets, events, announcements, birthdays (derivado de employees)
+
+Engines futuros (interfaces vacías + tablas)
+  AttendanceEngine, PayrollEngine — no lógica.
+
+Seguridad
+- Sin service_role en cliente.
+- Signed URLs cortas.
+- IDOR: receipt.id no alcanza; join employee + tenant + (owner o rol HR).
+- Soft delete / status, no DELETE físico de datos críticos.
+- audit_logs: insert-only para roles normales.
+
+Auth flow
+  login → session → profile (tenant_id, role) → redirect
+    EMPLOYEE → /app
+    HR_* / TENANT_ADMIN → /rrhh
+    SUPER_ADMIN → /admin
+
+==================================================
+4. MODELO DE DATOS (MVP + stubs)
+==================================================
+
+Enums
+  tenant_status: active | suspended | cancelled
+  user_status: active | disabled
+  employee_status: active | inactive | suspended
+  document_type: receipt | contract | certificate | policy | notice | other
+  document_status: pending | available | signed | non_conforming | cancelled
+  receipt_status: pending | signed | non_conforming | expired | cancelled
+  ticket_status: open | in_progress | answered | closed
+  ticket_category: receipt | salary | vacation | leave | documents | health | personal | other
+  event_type: training | meeting | internal | anniversary | holiday | other
+  announcement_audience: company | department | employees
+  birthday_visibility: public | department | private
+  audit_action: login | logout | create | update | delete | view | download | sign | sign_non_conform | upload | publish | answer
+  role_code: super_admin | tenant_admin | hr_admin | hr_operator | employee
+  payroll_run_status: draft | in_review | approved | closed | cancelled   (stub)
+  novelty_status: pending | approved | rejected | liquidated               (stub)
+  attendance_method: mobile_gps | qr | web                                 (stub)
+
+Tablas CORE
+  tenants
+  tenant_settings (logo, colors, timezone, birthday_visibility, receipt config)
+  profiles (id=auth.users.id, tenant_id nullable para super_admin, status, email)
+  roles / permissions / role_permissions / user_roles
+  files
+  documents / document_versions
+  notifications
+  audit_logs (append-only)
+
+Tablas HR
+  departments / positions
+  employees (tenant_id, user_id, employee_number, dni, birth_date, hire_date, …)
+  receipts / receipt_signatures / receipt_non_conformities
+  hr_tickets / hr_ticket_messages
+  events
+  announcements / announcement_targets
+
+Stubs (crear en migración 1, sin UI)
+  collective_agreements, agreement_versions, salary_scales, salary_scale_items
+  employee_agreements, employee_categories
+  payroll_concepts, payroll_rules, payroll_runs, payroll_run_employees, payroll_items, payroll_novelties
+  work_locations, work_schedules, work_schedule_days, employee_work_schedules
+  attendance_records, attendance_events
+
+Reglas
+  PK uuid. FK + índices (tenant_id, employee_id, period, status).
+  Unique (tenant_id, employee_number), (tenant_id, dni) where not deleted.
+  Todo recurso de negocio con tenant_id. Soft status, no hard delete.
+
+==================================================
+5. ESTRUCTURA DE CARPETAS (objetivo)
+==================================================
+
+src/
+  app/
+    (auth)/login
+    app/          empleado
+    rrhh/         tenant
+    admin/        plataforma
+    api/          solo lo necesario
+  components/     ui + layout
+  modules/        auth tenants employees receipts documents tickets events notifications audit
+  lib/            supabase, db, env
+  services/
+  repositories/
+  types/
+  validations/
+  hooks/
+supabase/
+  migrations/
+  seed.sql
+
+==================================================
+6. ENV
+==================================================
+
+Public
+  NEXT_PUBLIC_SUPABASE_URL
+  NEXT_PUBLIC_SUPABASE_ANON_KEY
+  NEXT_PUBLIC_PLATFORM_NAME
+
+Server
+  SUPABASE_SERVICE_ROLE_KEY
+  DATABASE_URL (si Prisma/Drizzle; si solo supabase-js, puede no hacer falta)
+
+Nunca en git: .env*.local
+
+==================================================
+7. DEPENDENCIAS PREVISTAS
+==================================================
+
+next react typescript tailwind
+@supabase/supabase-js @supabase/ssr
+zod
+lucide-react
+shadcn (radix)
+pdf visor: react-pdf o iframe signed URL (elegir el más chico que funcione en mobile)
+date: date-fns o Temporal via polyfill — date-fns ya alcanza
+
+No: Prisma obligatorio. Preferir SQL migrations + supabase-js para no duplicar schema. Si Drizzle simplifica tipos, se evalúa en Fase 1.
+
+==================================================
+8. TESTING (mínimo que no puede faltar)
+==================================================
+
+1. Tenant A no lee tenant B.
+2. Empleado no lee recibo ajeno (IDOR).
+3. Firma conforme persiste audit + hash.
+4. No conforme exige motivo + notifica RRHH.
+5. PDF sin sesión / otro tenant = 403.
+6. EMPLOYEE no entra a /rrhh/empleados.
+7. Usuario disabled no login.
+8. RLS no se salta con REST directo (test contra supabase).
+
+==================================================
+9. ROADMAP — CHECKLIST
+==================================================
+
+FASE 1  Arquitectura Core
+[x] Repo Next.js + TS + Tailwind (shadcn cuando haya primera UI de negocio)
+[x] .env.example
+[~] Carpetas lib/types/supabase (modules/services al primer servicio real)
+[x] Tipos/enums compartidos (src/types/enums.ts)
+[~] Dependencias: supabase-js, ssr, zod, lucide, date-fns
+
+FASE 2  Multi-tenancy
+[x] Migración tenants + tenant_settings (SQL en supabase/migrations/0001_core.sql — aplicar en el proyecto)
+[ ] Helper requireTenant()
+[ ] Convención storage path
+[ ] Confirmar RLS en el proyecto vivo
+
+FASE 3  Autenticación
+[ ] Supabase Auth email/password
+[ ] Login / recuperar
+[ ] Middleware sesión
+[ ] Redirect por rol
+
+FASE 4  Usuarios / Roles / Permisos
+[ ] profiles + user_roles
+[ ] Permisos granulares en tabla (usar subset en código)
+[ ] Guardas server: requireRole / requirePermission
+
+FASE 5  Empleados
+[ ] departments, positions, employees
+[ ] /rrhh/empleados CRUD
+[ ] Ficha tabs (personal / laboral; resto se enchufa después)
+[ ] /app perfil empleado (solo lo suyo)
+
+FASE 6  Documentos
+[ ] FileService + DocumentService
+[ ] Bucket privado + signed URL
+[ ] /rrhh/documentos listado básico
+[ ] /app/documentos
+
+FASE 7  Recibos
+[ ] receipts + estados
+[ ] /app/recibos split list+PDF
+[ ] /rrhh/recibos estados y filtros
+[ ] Carga masiva /rrhh/recibos/cargar
+
+FASE 8  Firma / Conformidad
+[ ] Modal conforme
+[ ] Modal no conforme + motivo
+[ ] Persistencia ip/ua/hash
+[ ] Copy legal: conformidad electrónica, no firma certificada
+
+FASE 9  Consultas RRHH
+[ ] tickets + messages
+[ ] /app/consultas
+[ ] /rrhh/consultas inbox + respuesta
+[ ] CTA “Consultar a RRHH” desde recibo
+
+FASE 10 Eventos / Cumpleaños / Comunicaciones
+[ ] events CRUD RRHH
+[ ] calendario empleado
+[ ] cumpleaños sin año + visibility
+[ ] announcements + audiencia
+
+FASE 11 Notificaciones
+[ ] tabla + campana
+[ ] marcar leída / todas
+[ ] NotificationService (in-app + hook email)
+
+FASE 12 Auditoría
+[ ] AuditService
+[ ] RLS insert-only
+[ ] /admin o /rrhh consulta de logs (RRHH solo su tenant)
+
+FASE 13 Dashboards
+[ ] /app dashboard (pendientes, consultas, evento, cumple, calendario)
+[ ] /rrhh dashboard KPIs + accesos rápidos
+[ ] /admin dashboard tenants
+
+FASE 14–23 Attendance / Payroll
+[-] Solo tablas stub en migración inicial
+[-] UI y engines = después del MVP
+
+FASE 24 Reportes
+[ ] Vista RRHH: conteos por estado/período
+[ ] CSV si es 1 query; Excel/PDF después
+
+FASE 25 Testing integral
+[ ] Los 8 casos de §8
+
+FASE 26 Seguridad / performance
+[ ] Índices, paginación, rate-limit prep
+[ ] Review IDOR + storage
+
+FASE 27 Producción
+[ ] Seed, backups, checklist go-live
+
+==================================================
+10. SIDEBARS (MVP)
+==================================================
+
+Empleado /app
+  Inicio, Recibos, Documentos, Consultas, Calendario, Cumpleaños, Comunicaciones, Perfil
+
+RRHH /rrhh
+  Inicio, Empleados, Recibos, Documentos, Consultas, Eventos, Cumpleaños, Comunicaciones, Reportes, Configuración
+
+Admin /admin
+  Inicio, Tenants, Usuarios plataforma
+
+==================================================
+11. UX NO NEGOCIABLE
+==================================================
+
+- Skeleton, empty state, error, toast, confirm en firma/publicar.
+- Mobile: drawer. Tablas → cards. Firma thumbs-friendly.
+- Branding tenant: logo + primary/secondary en chrome.
+- Español.
+
+==================================================
+12. PRÓXIMA ACCIÓN
+==================================================
+
+Siguiente: proyecto Supabase + migración tenants/profiles/roles/RLS (Fases 2–4).
+Sin pantallas de negocio hasta que exista tenant_id en DB.
