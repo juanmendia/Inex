@@ -70,13 +70,13 @@ export async function Shell({
   const meta = META[area];
 
   return (
-    <div className={`flex ${theme}`} style={accent ? ({ ["--accent"]: accent } as CSSProperties) : undefined}>
+    <div className={`flex min-h-screen ${theme}`} style={accent ? ({ ["--accent"]: accent } as CSSProperties) : undefined}>
       <aside
         className="hidden w-60 shrink-0 md:flex md:flex-col"
         style={{ background: "var(--aside)", color: "#f4efe4" }}
       >
         <div className="px-6 py-7">
-          <p className="text-[10px] tracking-[0.28em] uppercase" style={{ color: "var(--accent)" }}>
+          <p className="text-[10px] tracking-[0.28em] uppercase" style={{ color: "var(--mark, var(--accent))" }}>
             {meta.brand}
           </p>
           <p className="mt-2 text-xs opacity-70">{meta.kicker}</p>
@@ -108,7 +108,7 @@ export async function Shell({
         </nav>
         <p className="px-6 py-5 text-[11px] text-white/40">Acceso restringido al rol</p>
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col" style={{ background: "var(--bg)" }}>
         <header
           className="flex items-center justify-between px-5 py-4 md:px-8"
           style={{ background: "var(--header)", borderBottom: "1px solid var(--line)" }}
@@ -134,7 +134,7 @@ export async function Shell({
             </Link>
           ))}
         </div>
-        <main className="p-5 md:p-8">{children}</main>
+        <main className="flex-1 p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

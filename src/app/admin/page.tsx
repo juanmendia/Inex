@@ -54,105 +54,149 @@ export default async function AdminHome() {
 
   return (
     <Shell area="admin" title="Empresas" session={s}>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="panel p-5">
-          <p className="text-sm text-zinc-500">Empresas</p>
+      <div className="flex gap-3">
+        <div className="panel min-w-0 flex-1 px-5 py-4">
+          <p className="text-xs" style={{ color: "var(--muted)" }}>
+            Empresas
+          </p>
           <p className="text-2xl font-semibold">{tenants?.length ?? 0}</p>
         </div>
-        <div className="panel p-5">
-          <p className="text-sm text-zinc-500">Usuarios</p>
+        <div className="panel min-w-0 flex-1 px-5 py-4">
+          <p className="text-xs" style={{ color: "var(--muted)" }}>
+            Usuarios
+          </p>
           <p className="text-2xl font-semibold">{users ?? 0}</p>
         </div>
-        <div className="panel p-5">
-          <p className="text-sm text-zinc-500">Empleados</p>
+        <div className="panel min-w-0 flex-1 px-5 py-4">
+          <p className="text-xs" style={{ color: "var(--muted)" }}>
+            Empleados
+          </p>
           <p className="text-2xl font-semibold">{employees ?? 0}</p>
         </div>
       </div>
 
-      <InviteSuperForm />
-      <ul className="panel mt-2 divide-y">
-        {platformTeam.map((p) => (
-          <li key={p.userId} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-            <span>
-              <span className="font-medium">{p.label}</span>
-              <span className="text-zinc-500"> · {p.email}</span>
-              {p.me ? <span className="ml-2 text-[11px] uppercase tracking-wide text-[#c9a227]">vos</span> : null}
-            </span>
-            <span className="flex flex-wrap items-center gap-2">
-              {p.email ? <ResetTempPasswordForm email={p.email} /> : null}
-              {!p.me && platformTeam.length > 1 ? (
-                <form action={revokeSuperAdmin}>
-                  <input type="hidden" name="user_id" value={p.userId} />
-                  <button className="btn btn-ghost text-xs">Quitar</button>
-                </form>
-              ) : null}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      <CreateTenantForm />
-
-      <ul className="panel mt-4 divide-y">
-        {(tenants ?? []).map((t) => {
-          const people = peopleByTenant.get(t.id) ?? [];
-          return (
-            <li key={t.id} className="space-y-3 px-4 py-4 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  <span className="font-medium">{t.name}</span>{" "}
-                  <span className="text-zinc-500">
-                    {t.slug} · {TENANT_STATUS[t.status] ?? t.status}
-                  </span>
-                </span>
-                <span className="flex flex-wrap gap-2">
-                  <form action={toggleTenant}>
-                    <input type="hidden" name="id" value={t.id} />
-                    <input type="hidden" name="status" value={t.status} />
-                    <button className="btn btn-ghost text-[#c9a227]">
-                      {t.status === "active" ? "Suspender" : "Activar"}
-                    </button>
-                  </form>
-                  <DeleteTenantButton id={t.id} name={t.name} />
-                </span>
-              </div>
-
-              <p className="text-[11px] tracking-widest uppercase" style={{ color: "var(--muted)" }}>
-                Administradores de RRHH
-              </p>
-              {people.length === 0 ? (
-                <p className="text-xs text-zinc-500">Todavía no hay nadie. Agregá un correo abajo.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {people.map((p) => (
-                    <li key={p.userId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2">
-                      <span>
-                        <span className="font-medium">{p.label}</span>
-                        {p.email ? <span className="text-zinc-500"> · {p.email}</span> : null}
-                        {p.pending ? (
-                          <span className="ml-2 text-[11px] uppercase tracking-wide text-[#c9a227]">
-                            pendiente de contraseña
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className="flex gap-2">
-                        {p.email ? <ResetTempPasswordForm email={p.email} /> : null}
-                        <form action={revokeTenantAccess}>
-                          <input type="hidden" name="tenant_id" value={t.id} />
-                          <input type="hidden" name="user_id" value={p.userId} />
-                          <button className="btn btn-ghost text-xs">Quitar</button>
+      <div className="mt-6 flex flex-col gap-6 xl:flex-row xl:items-start">
+        <section className="panel min-w-0 flex-1 overflow-hidden">
+          <div
+            className="flex flex-col gap-4 border-b px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
+            style={{ borderColor: "var(--line)" }}
+          >
+            <h2 className="text-base font-semibold">Empresas</h2>
+            <CreateTenantForm />
+          </div>
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b text-xs" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
+                <th className="px-6 py-2 font-medium">Nombre</th>
+                <th className="px-6 py-2 font-medium">RRHH</th>
+                <th className="px-6 py-2 font-medium">Estado</th>
+                <th className="px-6 py-2 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {(tenants ?? []).map((t) => {
+                const people = peopleByTenant.get(t.id) ?? [];
+                return (
+                  <tr key={t.id} className="border-b align-top last:border-0" style={{ borderColor: "var(--line)" }}>
+                    <td className="px-6 py-4 font-medium">{t.name}</td>
+                    <td className="px-6 py-4">
+                      {people.length === 0 ? (
+                        <p className="text-xs" style={{ color: "var(--muted)" }}>
+                          Nadie asignado
+                        </p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {people.map((p) => (
+                            <li key={p.userId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span>
+                                {p.label}
+                                {p.email ? <span style={{ color: "var(--muted)" }}> · {p.email}</span> : null}
+                                {p.pending ? (
+                                  <span className="ml-2 text-[11px]" style={{ color: "var(--accent)" }}>
+                                    falta clave
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span className="flex gap-1">
+                                {p.email ? <ResetTempPasswordForm email={p.email} /> : null}
+                                <form action={revokeTenantAccess}>
+                                  <input type="hidden" name="tenant_id" value={t.id} />
+                                  <input type="hidden" name="user_id" value={p.userId} />
+                                  <button className="btn btn-ghost text-xs">Quitar</button>
+                                </form>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="mt-2">
+                        <GrantAccessForm tenantId={t.id} />
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-xs" style={{ color: "var(--muted)" }}>
+                      {TENANT_STATUS[t.status] ?? t.status}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-end gap-1">
+                        <form action={toggleTenant}>
+                          <input type="hidden" name="id" value={t.id} />
+                          <input type="hidden" name="status" value={t.status} />
+                          <button className="btn btn-ghost text-xs">
+                            {t.status === "active" ? "Suspender" : "Activar"}
+                          </button>
                         </form>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                        <DeleteTenantButton id={t.id} name={t.name} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
 
-              <GrantAccessForm tenantId={t.id} />
-            </li>
-          );
-        })}
-      </ul>
+        <section className="panel w-full shrink-0 overflow-hidden xl:w-80">
+          <div className="border-b px-5 py-4" style={{ borderColor: "var(--line)" }}>
+            <h2 className="text-sm font-semibold">Plataforma</h2>
+            <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+              Superadmins. No entran a RRHH.
+            </p>
+            <div className="mt-3">
+              <InviteSuperForm />
+            </div>
+          </div>
+          <ul>
+            {platformTeam.map((p) => (
+              <li
+                key={p.userId}
+                className="border-b px-5 py-3 text-sm last:border-0"
+                style={{ borderColor: "var(--line)" }}
+              >
+                <p className="font-medium">
+                  {p.label}
+                  {p.me ? (
+                    <span className="ml-2 text-[11px] font-normal" style={{ color: "var(--accent)" }}>
+                      vos
+                    </span>
+                  ) : null}
+                </p>
+                <p className="truncate text-xs" style={{ color: "var(--muted)" }}>
+                  {p.email}
+                </p>
+                <div className="mt-1 flex gap-1">
+                  {p.email ? <ResetTempPasswordForm email={p.email} /> : null}
+                  {!p.me && platformTeam.length > 1 ? (
+                    <form action={revokeSuperAdmin}>
+                      <input type="hidden" name="user_id" value={p.userId} />
+                      <button className="btn btn-ghost text-xs">Quitar</button>
+                    </form>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
     </Shell>
   );
 }

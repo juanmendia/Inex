@@ -6,21 +6,14 @@ import { createTenant, grantTenantAccess, inviteSuperAdmin, deleteTenant, resetT
 export function CreateTenantForm() {
   const [message, action, pending] = useActionState(createTenant, null);
   return (
-    <form action={action} className="panel mt-6 grid gap-2 p-5 md:grid-cols-2">
-      <p className="text-xs tracking-widest uppercase md:col-span-2" style={{ color: "var(--muted)" }}>
-        Nueva empresa
-      </p>
-      <input name="name" required placeholder="Nombre de la empresa" className="field md:col-span-2" />
-      <input name="admin_email" type="email" required placeholder="Correo del administrador de RRHH" className="field" />
-      <input name="admin_name" placeholder="Nombre de esa persona" className="field" />
-      <p className="text-xs md:col-span-2" style={{ color: "var(--muted)" }}>
-        Se crea la empresa y una clave temporal fácil (tipo Inex4821!). Copiála y pasásela al de RRHH: entra
-        con su correo, cambia la clave al primer ingreso y arma empleados. No se manda mail.
-      </p>
-      {message ? <p className="text-sm md:col-span-2" style={{ color: "var(--accent)" }}>{message}</p> : null}
-      <button disabled={pending} className="btn btn-primary md:col-span-2">
-        {pending ? "Creando…" : "Crear empresa"}
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <input name="name" required placeholder="Nombre de la empresa" className="field field-sm" />
+      <input name="admin_email" type="email" required placeholder="Correo de RRHH" className="field field-sm" />
+      <input name="admin_name" placeholder="Nombre" className="field field-sm" />
+      <button disabled={pending} className="btn btn-primary">
+        {pending ? "Creando…" : "Crear"}
       </button>
+      {message ? <p className="basis-full text-sm" style={{ color: "var(--accent)" }}>{message}</p> : null}
     </form>
   );
 }
@@ -28,23 +21,17 @@ export function CreateTenantForm() {
 export function InviteSuperForm() {
   const [message, action, pending] = useActionState(inviteSuperAdmin, null);
   return (
-    <form action={action} className="panel mt-6 grid gap-2 p-5 md:grid-cols-2">
-      <p className="text-xs tracking-widest uppercase md:col-span-2" style={{ color: "var(--muted)" }}>
-        Superadmins de la plataforma
-      </p>
-      <input name="email" type="email" required placeholder="Correo (el tuyo real u otra persona)" className="field" />
+    <form action={action} className="space-y-2">
+      <input name="email" type="email" required placeholder="Correo" className="field" />
       <input name="name" placeholder="Nombre" className="field" />
-      <p className="text-xs md:col-span-2" style={{ color: "var(--muted)" }}>
-        Esta cuenta solo ve empresas y da accesos de RRHH. Clave temporal en pantalla; la cambia al entrar.
-      </p>
+      <button disabled={pending} className="btn btn-primary">
+        {pending ? "…" : "Agregar"}
+      </button>
       {message ? (
-        <p className="max-w-3xl break-all text-sm md:col-span-2" style={{ color: "var(--accent)" }}>
+        <p className="text-sm break-all" style={{ color: "var(--accent)" }}>
           {message}
         </p>
       ) : null}
-      <button disabled={pending} className="btn btn-primary md:col-span-2">
-        {pending ? "Invitando…" : "Agregar superadmin"}
-      </button>
     </form>
   );
 }
@@ -52,17 +39,17 @@ export function InviteSuperForm() {
 export function GrantAccessForm({ tenantId }: { tenantId: string }) {
   const [message, action, pending] = useActionState(grantTenantAccess, null);
   return (
-    <form action={action} className="mt-3 space-y-2">
+    <form action={action} className="space-y-2">
       <div className="flex flex-wrap gap-2">
         <input type="hidden" name="tenant_id" value={tenantId} />
-        <input name="admin_email" type="email" required placeholder="Otro administrador (correo)" className="field max-w-xs" />
-        <input name="admin_name" placeholder="Nombre" className="field max-w-[12rem]" />
-        <button disabled={pending} className="btn btn-ghost">
-          {pending ? "Guardando…" : "Agregar administrador"}
+        <input name="admin_email" type="email" required placeholder="Correo" className="field field-sm" />
+        <input name="admin_name" placeholder="Nombre" className="field field-sm" />
+        <button disabled={pending} className="btn btn-primary">
+          {pending ? "…" : "Agregar"}
         </button>
       </div>
       {message ? (
-        <p className="max-w-3xl break-all text-xs" style={{ color: "var(--accent)" }}>
+        <p className="text-xs break-all" style={{ color: "var(--accent)" }}>
           {message}
         </p>
       ) : null}
@@ -76,7 +63,7 @@ export function ResetTempPasswordForm({ email }: { email: string }) {
     <form action={action} className="flex flex-col items-end gap-1">
       <input type="hidden" name="email" value={email} />
       <button disabled={pending} className="btn btn-ghost text-xs">
-        {pending ? "…" : "Nueva clave temporal"}
+        {pending ? "…" : "Nueva clave"}
       </button>
       {message ? (
         <span className="max-w-xs text-right text-[11px]" style={{ color: "var(--accent)" }}>
@@ -98,7 +85,7 @@ export function DeleteTenantButton({ id, name }: { id: string; name: string }) {
       }}
     >
       <input type="hidden" name="id" value={id} />
-      <button type="submit" className="btn btn-ghost text-xs text-red-400">
+      <button type="submit" className="btn btn-ghost text-xs text-red-700">
         Eliminar
       </button>
     </form>

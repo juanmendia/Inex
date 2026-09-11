@@ -54,21 +54,34 @@ body {
   border-radius: 1rem;
 }
 
-/* —— Super admin: consola oscura, oro —— */
+.field-sm {
+  width: 13.5rem;
+  max-width: 100%;
+  flex: 0 0 13.5rem;
+}
+
+/* —— Super admin: papel blanco sobre gris cálido —— */
 .shell-admin {
-  --bg: #0b0f14;
-  --panel: #121820;
-  --line: #243040;
-  --text: #eee8d8;
-  --muted: #9aa4b2;
-  --accent: #c9a227;
-  --accent-fg: #1a1408;
-  --aside: #0e131a;
-  --header: #121820;
-  --field-bg: #0b0f14;
-  background: radial-gradient(1200px 500px at 10% -10%, #1a2430, var(--bg));
+  --bg: #e8e4dc;
+  --panel: #ffffff;
+  --line: #d8d0c4;
+  --text: #1c1914;
+  --muted: #6f675c;
+  --accent: #1f5c56;
+  --accent-fg: #f7f1e4;
+  --aside: #173833;
+  --header: #ffffff;
+  --field-bg: #fff;
+  --mark: #e8dcc8;
+  background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+}
+.shell-admin .panel {
+  box-shadow: 0 8px 24px rgba(28, 25, 20, 0.05);
+}
+.shell-admin .btn-ghost:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
 /* —— RRHH: navy corporativo —— */
