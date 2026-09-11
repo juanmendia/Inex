@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Inex",
   description: "Plataforma de Recursos Humanos",
+  manifest: "/manifest.json",
+  appleWebApp: { capable: true, title: "Inex" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

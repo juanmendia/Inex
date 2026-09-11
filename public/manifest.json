@@ -1,0 +1,9 @@
+{
+  "name": "Inex",
+  "short_name": "Inex",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#f4f4f5",
+  "theme_color": "#4f46e5",
+  "lang": "es"
+}

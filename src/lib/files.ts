@@ -1,0 +1,108 @@
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { SessionContext } from "@/lib/auth/session";
+
+const BUCKET = "documents";
+
+export async function ensureBucket() {
+  const db = createAdminClient();
+  const { data } = await db.storage.getBucket(BUCKET);
+  if (!data) {
+    await db.storage.createBucket(BUCKET, { public: false, fileSizeLimit: 10 * 1024 * 1024 });
+  }
+}
+
+export async function uploadPrivatePdf(opts: {
+  tenantId: string;
+  userId: string;
+  folder: string;
+  file: File;
+}) {
+  if (opts.file.type !== "application/pdf" && !opts.file.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("Solo se aceptan PDF.");
+  }
+  if (opts.file.size > 10 * 1024 * 1024) throw new Error("El archivo supera 10 MB.");
+
+  await ensureBucket();
+  const db = createAdminClient();
+  const ext = "pdf";
+  const storagePath = `${opts.tenantId}/${opts.folder}/${crypto.randomUUID()}.${ext}`;
+  const buf = Buffer.from(await opts.file.arrayBuffer());
+  const up = await db.storage.from(BUCKET).upload(storagePath, buf, {
+    contentType: "application/pdf",
+    upsert: false,
+  });
+  if (up.error) throw new Error(up.error.message);
+
+  const { data: fileRow, error } = await db
+    .from("files")
+    .insert({
+      tenant_id: opts.tenantId,
+      storage_path: storagePath,
+      mime_type: "application/pdf",
+      size_bytes: opts.file.size,
+      created_by: opts.userId,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return { fileId: fileRow.id, storagePath };
+}
+
+export async function signedUrl(storagePath: string) {
+  const db = createAdminClient();
+  const { data, error } = await db.storage.from(BUCKET).createSignedUrl(storagePath, 120);
+  if (error || !data) throw new Error(error?.message ?? "No se pudo firmar la URL");
+  return data.signedUrl;
+}
+
+export async function signedUrlForDocument(documentId: string) {
+  const db = createAdminClient();
+  const { data: doc } = await db.from("documents").select("current_file_id").eq("id", documentId).single();
+  if (!doc?.current_file_id) throw new Error("Archivo no encontrado");
+  const { data: file } = await db.from("files").select("storage_path").eq("id", doc.current_file_id).single();
+  if (!file) throw new Error("Archivo no encontrado");
+  return signedUrl(file.storage_path);
+}
+
+export async function notifyUsers(tenantId: string, userIds: string[], title: string, body?: string) {
+  const ids = userIds.filter(Boolean);
+  if (!ids.length) return;
+  const db = createAdminClient();
+  await db.from("notifications").insert(
+    ids.map((user_id) => ({ tenant_id: tenantId, user_id, title, body: body ?? null })),
+  );
+}
+
+export async function getMyEmployee(session: SessionContext) {
+  const db = createAdminClient();
+  const { data } = await db
+    .from("employees")
+    .select("*")
+    .eq("user_id", session.userId)
+    .eq("tenant_id", session.tenantId!)
+    .maybeSingle();
+  return data;
+}
+
+export async function audit(opts: {
+  tenantId: string | null;
+  userId: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  metadata?: Record<string, unknown>;
+  ip?: string | null;
+  ua?: string | null;
+}) {
+  const db = createAdminClient();
+  await db.from("audit_logs").insert({
+    tenant_id: opts.tenantId,
+    user_id: opts.userId,
+    action: opts.action,
+    entity_type: opts.entityType,
+    entity_id: opts.entityId ?? null,
+    metadata: opts.metadata ?? {},
+    ip_address: opts.ip ?? null,
+    user_agent: opts.ua ?? null,
+  });
+}

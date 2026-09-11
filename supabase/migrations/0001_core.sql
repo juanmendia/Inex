@@ -64,36 +64,6 @@ begin
 end;
 $$;
 
-create or replace function public.current_profile_id()
-returns uuid language sql stable as $$
-  select auth.uid();
-$$;
-
-create or replace function public.current_tenant_id()
-returns uuid language sql stable security definer set search_path = public as $$
-  select tenant_id from public.profiles where id = auth.uid();
-$$;
-
-create or replace function public.has_role(codes role_code[])
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1
-    from public.user_roles ur
-    where ur.user_id = auth.uid()
-      and ur.role = any (codes)
-  );
-$$;
-
-create or replace function public.is_super_admin()
-returns boolean language sql stable security definer set search_path = public as $$
-  select public.has_role(array['super_admin']::role_code[]);
-$$;
-
-create or replace function public.is_tenant_staff()
-returns boolean language sql stable security definer set search_path = public as $$
-  select public.has_role(array['tenant_admin','hr_admin','hr_operator']::role_code[]);
-$$;
-
 -- ---------- core tables ----------
 create table if not exists public.tenants (
   id uuid primary key default gen_random_uuid(),
@@ -345,6 +315,36 @@ create table if not exists public.attendance_records (
   longitude double precision,
   created_at timestamptz not null default now()
 );
+
+create or replace function public.current_profile_id()
+returns uuid language sql stable as $$
+  select auth.uid();
+$$;
+
+create or replace function public.current_tenant_id()
+returns uuid language sql stable security definer set search_path = public as $$
+  select tenant_id from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.has_role(codes role_code[])
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1
+    from public.user_roles ur
+    where ur.user_id = auth.uid()
+      and ur.role = any (codes)
+  );
+$$;
+
+create or replace function public.is_super_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.has_role(array['super_admin']::role_code[]);
+$$;
+
+create or replace function public.is_tenant_staff()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.has_role(array['tenant_admin','hr_admin','hr_operator']::role_code[]);
+$$;
 
 -- ---------- triggers ----------
 drop trigger if exists tenants_updated_at on public.tenants;

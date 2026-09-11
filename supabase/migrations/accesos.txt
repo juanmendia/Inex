@@ -1,0 +1,15 @@
+URL	Usuario	Qué deberías ver
+/admin
+super@inex.demo
+Tenants reales
+
+/rrhh
+hr@inex.demo
+Empleado Juan
+
+/app
+empleado@inex.demo
+“Hola, Juan” + legajo
+
+Clave de los tres
+InexDemo123!

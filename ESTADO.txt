@@ -267,54 +267,66 @@ FASE 2  Multi-tenancy
 [x] Migración tenants + tenant_settings (SQL en supabase/migrations/0001_core.sql — aplicar en el proyecto)
 [ ] Helper requireTenant()
 [ ] Convención storage path
-[ ] Confirmar RLS en el proyecto vivo
+[x] Confirmar RLS en el proyecto vivo (seed leyó tenants)
 
 FASE 3  Autenticación
-[ ] Supabase Auth email/password
-[ ] Login / recuperar
-[ ] Middleware sesión
-[ ] Redirect por rol
+[x] Supabase Auth email/password
+[x] Login / recuperar
+[x] Middleware sesión
+[x] Redirect por rol
 
 FASE 4  Usuarios / Roles / Permisos
-[ ] profiles + user_roles
+[x] profiles + user_roles (seed demo)
 [ ] Permisos granulares en tabla (usar subset en código)
 [ ] Guardas server: requireRole / requirePermission
 
 FASE 5  Empleados
-[ ] departments, positions, employees
-[ ] /rrhh/empleados CRUD
-[ ] Ficha tabs (personal / laboral; resto se enchufa después)
-[ ] /app perfil empleado (solo lo suyo)
+[x] employees alta/listado/activar-desactivar (/rrhh/empleados)
+[x] Ficha tabs personal / laboral / recibos / consultas
+[x] departments / positions (texto en ficha, upsert)
 
 FASE 6  Documentos
-[ ] FileService + DocumentService
-[ ] Bucket privado + signed URL
-[ ] /rrhh/documentos listado básico
-[ ] /app/documentos
+[x] FileService + bucket privado + signed URL
+[x] /rrhh/documentos y /empleado/documentos
 
 FASE 7  Recibos
-[ ] receipts + estados
-[ ] /app/recibos split list+PDF
-[ ] /rrhh/recibos estados y filtros
-[ ] Carga masiva /rrhh/recibos/cargar
-
-FASE 8  Firma / Conformidad
-[ ] Modal conforme
-[ ] Modal no conforme + motivo
-[ ] Persistencia ip/ua/hash
-[ ] Copy legal: conformidad electrónica, no firma certificada
-
-FASE 9  Consultas RRHH
-[ ] tickets + messages
-[ ] /app/consultas
-[ ] /rrhh/consultas inbox + respuesta
-[ ] CTA “Consultar a RRHH” desde recibo
+[x] /empleado/recibos split list+PDF
+[x] /rrhh/recibos + publicar PDF (varios archivos)
 
 FASE 10 Eventos / Cumpleaños / Comunicaciones
-[ ] events CRUD RRHH
-[ ] calendario empleado
-[ ] cumpleaños sin año + visibility
-[ ] announcements + audiencia
+[x] Eventos RRHH + calendario empleado + cumpleaños (sin año)
+[x] Comunicaciones / anuncios
+
+FASE 11 Notificaciones
+[x] tabla + campana + marcar leída / todas
+[ ] hook email
+
+FASE 12 Auditoría
+[x] AuditService + /rrhh/actividad
+
+Siguiente: pulir UX, reportes CSV, tests de aislamiento. Liquidación/fichaje siguen fuera del MVP.
+
+FASE 6  Documentos
+[x] FileService + bucket privado + signed URL (vía recibos)
+[ ] /rrhh/documentos genérico
+
+FASE 7  Recibos
+[x] /empleado/recibos split list+PDF
+[x] /rrhh/recibos + publicar PDF
+[ ] Carga masiva ZIP/nombre de archivo
+
+FASE 8  Firma / Conformidad
+[x] Modal conforme / no conforme + motivo + audit ip/ua
+[x] Copy: conformidad electrónica
+
+FASE 9  Consultas RRHH
+[x] Tickets empleado + inbox RRHH
+
+FASE 10 Eventos / Cumpleaños / Comunicaciones
+[x] Eventos RRHH + calendario empleado + cumpleaños (sin año)
+[ ] Comunicaciones / anuncios
+
+Portal empleado: /empleado (no /app).
 
 FASE 11 Notificaciones
 [ ] tabla + campana
@@ -327,9 +339,9 @@ FASE 12 Auditoría
 [ ] /admin o /rrhh consulta de logs (RRHH solo su tenant)
 
 FASE 13 Dashboards
-[ ] /app dashboard (pendientes, consultas, evento, cumple, calendario)
-[ ] /rrhh dashboard KPIs + accesos rápidos
-[ ] /admin dashboard tenants
+[x] /empleado dashboard
+[x] /rrhh KPIs
+[x] /admin tenants
 
 FASE 14–23 Attendance / Payroll
 [-] Solo tablas stub en migración inicial
@@ -375,5 +387,5 @@ Admin /admin
 12. PRÓXIMA ACCIÓN
 ==================================================
 
-Siguiente: proyecto Supabase + migración tenants/profiles/roles/RLS (Fases 2–4).
-Sin pantallas de negocio hasta que exista tenant_id en DB.
+Siguiente: pegar y Run de supabase/migrations/0002_payroll_attendance.sql (básico, novedades, punch_type).
+Fuera de alcance del producto (el prompt lo deja explícito): IA, WhatsApp, firma digital certificada, app iOS/Android nativa, CCT/Ganancias reales, reconocimiento facial.
