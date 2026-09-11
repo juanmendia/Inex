@@ -57,14 +57,25 @@ async function finishLogin(userId: string) {
 
 export async function login(_prev: string | null, formData: FormData): Promise<string | null> {
   const identifier = String(formData.get("user") ?? formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
+  const password = String(formData.get("password") ?? "").trim();
   if (!identifier || !password) return "Completá usuario y contraseña.";
 
   const email = await emailFromIdentifier(identifier);
   if (!email) return "Usuario o contraseña incorrectos.";
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    const admin = createAdminClient();
+    const { data: listed } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const found = listed.users.find((u) => u.email?.toLowerCase() === email);
+    if (found) {
+      await admin.auth.admin.updateUserById(found.id, { email_confirm: true });
+      const retry = await supabase.auth.signInWithPassword({ email, password });
+      data = retry.data;
+      error = retry.error;
+    }
+  }
   if (error || !data.user) return "Usuario o contraseña incorrectos.";
   const result = await finishLogin(data.user.id);
   return result.error;

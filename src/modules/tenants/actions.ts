@@ -19,7 +19,21 @@ function slugify(name: string) {
 }
 
 function easyPassword() {
-  return `Inex${1000 + Math.floor(Math.random() * 9000)}!`;
+  return `Inex${1000 + Math.floor(Math.random() * 9000)}Aa`;
+}
+
+async function setConfirmedPassword(
+  db: ReturnType<typeof createAdminClient>,
+  userId: string,
+  password: string,
+  app_metadata: Record<string, unknown>,
+) {
+  const { error } = await db.auth.admin.updateUserById(userId, {
+    password,
+    email_confirm: true,
+    app_metadata,
+  });
+  if (error) throw new Error(error.message);
 }
 
 function roleError(error: { message?: string; code?: string } | null) {
@@ -89,9 +103,10 @@ async function findOrCreateAdmin(
     await grantAdmin(db, found.id, tenantId);
     if (!found.last_sign_in_at || found.app_metadata?.must_change_password) {
       const pass = easyPassword();
-      await db.auth.admin.updateUserById(found.id, {
-        password: pass,
-        app_metadata: { ...found.app_metadata, roles: [RoleCode.TENANT_ADMIN], must_change_password: true },
+      await setConfirmedPassword(db, found.id, pass, {
+        ...found.app_metadata,
+        roles: [RoleCode.TENANT_ADMIN],
+        must_change_password: true,
       });
       return {
         message: `${email} entra con clave temporal ${pass}. Obligatorio cambiarla en el primer ingreso.`,
@@ -230,9 +245,10 @@ export async function inviteSuperAdmin(_prev: string | null, formData: FormData)
     });
     if (error) return roleError(error);
   }
-  await db.auth.admin.updateUserById(userId!, {
-    password: pass,
-    app_metadata: { ...(found?.app_metadata ?? {}), roles: [RoleCode.SUPER_ADMIN], must_change_password: true },
+  await setConfirmedPassword(db, userId!, pass, {
+    ...(found?.app_metadata ?? {}),
+    roles: [RoleCode.SUPER_ADMIN],
+    must_change_password: true,
   });
   revalidatePath("/admin");
   return `Superadmin listo. ${email} entra con clave temporal ${pass} y la cambia al primer ingreso.`;
@@ -265,20 +281,26 @@ export async function resetTempPassword(_prev: string | null, formData: FormData
   const found = listed.users.find((u) => u.email?.toLowerCase() === email);
   if (!found) return "No hay usuario con ese correo.";
   if (email.endsWith("@inex.demo")) {
-    const { error } = await db.auth.admin.updateUserById(found.id, {
-      password: "InexDemo123!",
-      app_metadata: { ...found.app_metadata, must_change_password: false },
-    });
-    if (error) return error.message;
+    try {
+      await setConfirmedPassword(db, found.id, "InexDemo123!", {
+        ...found.app_metadata,
+        must_change_password: false,
+      });
+    } catch (e) {
+      return e instanceof Error ? e.message : "No se pudo guardar la clave.";
+    }
     revalidatePath("/admin");
     return "Cuenta demo: clave InexDemo123! (no se rota).";
   }
   const pass = easyPassword();
-  const { error } = await db.auth.admin.updateUserById(found.id, {
-    password: pass,
-    app_metadata: { ...found.app_metadata, must_change_password: true },
-  });
-  if (error) return error.message;
+  try {
+    await setConfirmedPassword(db, found.id, pass, {
+      ...found.app_metadata,
+      must_change_password: true,
+    });
+  } catch (e) {
+    return e instanceof Error ? e.message : "No se pudo guardar la clave.";
+  }
   revalidatePath("/admin");
   return `Clave temporal: ${pass} — ${email} la cambia al primer ingreso.`;
 }
