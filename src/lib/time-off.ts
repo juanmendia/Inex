@@ -1,10 +1,6 @@
-export const TIME_OFF_KIND: Record<string, string> = {
-  vacation: "Vacaciones",
-  leave: "Licencia",
-  sick: "Enfermedad",
-  company_off: "Día no laboral (empresa)",
-  unjustified: "Falta injustificada",
-};
+import { LEAVE_CATALOG } from "@/lib/leave-catalog";
+
+export const TIME_OFF_KIND: Record<string, string> = Object.fromEntries(LEAVE_CATALOG.map((t) => [t.code, t.name]));
 
 export const TIME_OFF_STATUS: Record<string, string> = {
   pending: "Pendiente",

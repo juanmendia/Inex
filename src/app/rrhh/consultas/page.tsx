@@ -26,7 +26,8 @@ export default async function ConsultasRrhh({
         .order("created_at")
     : { data: [] };
 
-  function empOf(t: (typeof tickets)[number]) {
+  type TicketRow = NonNullable<typeof tickets>[number];
+  function empOf(t: TicketRow) {
     const raw = t.employees as { first_name: string; last_name: string; user_id: string | null } | { first_name: string; last_name: string; user_id: string | null }[] | null;
     return Array.isArray(raw) ? raw[0] : raw;
   }

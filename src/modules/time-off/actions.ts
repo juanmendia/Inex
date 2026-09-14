@@ -3,10 +3,44 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff } from "@/lib/auth/session";
-import { getMyEmployee, notifyStaff, notifyUsers } from "@/lib/files";
+import { getMyEmployee, notifyStaff, notifyUsers, uploadLeaveAttachment } from "@/lib/files";
 import { isArHoliday, buenosAiresDate } from "@/lib/ar-holidays";
 import { datesInRange, isWeekday, coversDay } from "@/lib/time-off";
+import { LEAVE_CATALOG } from "@/lib/leave-catalog";
 import { roundMoney } from "@/lib/labels";
+
+export type LeaveTypeRow = {
+  id: string;
+  code: string;
+  name: string;
+  employee_can_request: boolean;
+  requires_certificate: boolean;
+  active: boolean;
+  sort: number;
+};
+
+export async function ensureLeaveTypes(tenantId: string): Promise<LeaveTypeRow[]> {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("leave_types")
+    .select("id, code, name, employee_can_request, requires_certificate, active, sort")
+    .eq("tenant_id", tenantId)
+    .order("sort");
+  if (error) throw new Error("Corré 0015_leave_types.sql en el editor SQL de Supabase.");
+  if (data?.length) return data as LeaveTypeRow[];
+  const rows = LEAVE_CATALOG.map((t) => ({ tenant_id: tenantId, ...t }));
+  const ins = await db.from("leave_types").insert(rows).select("id, code, name, employee_can_request, requires_certificate, active, sort");
+  if (ins.error) throw new Error("Corré 0015_leave_types.sql en el editor SQL de Supabase.");
+  return (ins.data ?? []) as LeaveTypeRow[];
+}
+
+async function certFromForm(tenantId: string, userId: string, formData: FormData) {
+  const file = formData.get("certificate");
+  if (!(file instanceof File) || file.size === 0) return null;
+  const up = await uploadLeaveAttachment({ tenantId, userId, file });
+  if (up.error) throw new Error(up.error);
+  return up.path ?? null;
+}
 
 function touch() {
   revalidatePath("/empleado/vacaciones");
@@ -22,26 +56,27 @@ export async function requestTimeOff(formData: FormData) {
   const ends = String(formData.get("ends_on") ?? "") || starts;
   if (!starts) throw new Error("Indicá desde cuándo.");
   if (ends < starts) throw new Error("La fecha hasta no puede ser anterior.");
-  const kind = String(formData.get("kind") ?? "vacation");
-  if (kind === "company_off" || kind === "unjustified") throw new Error("Eso lo carga RRHH.");
+  const types = await ensureLeaveTypes(s.tenantId!);
+  const typeId = String(formData.get("leave_type_id") ?? "");
+  const lt = types.find((t) => t.id === typeId && t.active && t.employee_can_request);
+  if (!lt) throw new Error("Elegí el tipo de licencia.");
+  const cert = await certFromForm(s.tenantId!, s.userId, formData);
+  if (lt.requires_certificate && !cert) throw new Error("Esta licencia pide certificado (foto o PDF).");
   const db = createAdminClient();
   const { error } = await db.from("time_off").insert({
     tenant_id: s.tenantId,
     employee_id: me.id,
-    kind,
+    kind: lt.code,
+    leave_type_id: lt.id,
     starts_on: starts,
     ends_on: ends,
     status: "pending",
     note: String(formData.get("note") ?? "").trim() || null,
+    certificate_path: cert,
     created_by: s.userId,
   });
-  if (error) throw new Error("No se pudo pedir. Corré 0013_time_off.sql en Supabase.");
-  await notifyStaff(
-    s.tenantId!,
-    kind === "vacation" ? "Pedido de vacaciones" : "Pedido de licencia",
-    `${me.first_name} ${me.last_name}: ${starts} → ${ends}`,
-    "/rrhh/ausencias",
-  );
+  if (error) throw new Error("No se pudo pedir. Corré 0013 y 0015 en Supabase.");
+  await notifyStaff(s.tenantId!, "Pedido de licencia", `${me.first_name} ${me.last_name}: ${lt.name} ${starts} → ${ends}`, "/rrhh/ausencias");
   touch();
 }
 
@@ -60,13 +95,20 @@ export async function updateMyTimeOff(formData: FormData) {
     .eq("employee_id", me.id)
     .maybeSingle();
   if (!row || row.status !== "pending") throw new Error("Solo podés cambiar un pedido pendiente.");
+  const types = await ensureLeaveTypes(s.tenantId!);
+  const typeId = String(formData.get("leave_type_id") ?? "");
+  const lt = types.find((t) => t.id === typeId && t.active && t.employee_can_request);
+  if (!lt) throw new Error("Elegí el tipo de licencia.");
+  const cert = await certFromForm(s.tenantId!, s.userId, formData);
   const { error } = await db
     .from("time_off")
     .update({
       starts_on: starts,
       ends_on: ends,
       note: String(formData.get("note") ?? "").trim() || null,
-      kind: String(formData.get("kind") ?? "vacation"),
+      kind: lt.code,
+      leave_type_id: lt.id,
+      ...(cert ? { certificate_path: cert } : {}),
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
@@ -127,18 +169,25 @@ export async function staffTimeOff(formData: FormData) {
   const starts = String(formData.get("starts_on") ?? "");
   const ends = String(formData.get("ends_on") ?? "") || starts;
   const kind = String(formData.get("kind") ?? "company_off");
+  const typeId = String(formData.get("leave_type_id") ?? "");
+  const types = await ensureLeaveTypes(s.tenantId!);
+  const lt = typeId ? types.find((t) => t.id === typeId) : types.find((t) => t.code === kind);
+  const code = lt?.code ?? kind;
   if (!starts) throw new Error("Indicá la fecha.");
   const employeeId = String(formData.get("employee_id") ?? "") || null;
-  if (kind !== "company_off" && !employeeId) throw new Error("Elegí un empleado.");
+  if (code !== "company_off" && !employeeId) throw new Error("Elegí un empleado.");
+  const cert = await certFromForm(s.tenantId!, s.userId, formData);
   const db = createAdminClient();
   const { error } = await db.from("time_off").insert({
     tenant_id: s.tenantId,
-    employee_id: kind === "company_off" ? null : employeeId,
-    kind,
+    employee_id: code === "company_off" ? null : employeeId,
+    kind: code,
+    leave_type_id: lt?.id ?? null,
     starts_on: starts,
     ends_on: ends,
     status: "approved",
     note: String(formData.get("note") ?? "").trim() || null,
+    certificate_path: cert,
     created_by: s.userId,
     decided_by: s.userId,
   });
@@ -217,4 +266,48 @@ export async function scanUnjustifiedAbsences(formData: FormData) {
   }
   touch();
   revalidatePath("/rrhh/empleados");
+}
+
+export async function addLeaveType(formData: FormData) {
+  const s = await requireStaff();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Indicá el nombre.");
+  await ensureLeaveTypes(s.tenantId!);
+  const db = createAdminClient();
+  const code = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 40) || `lic_${Date.now()}`;
+  const { error } = await db.from("leave_types").insert({
+    tenant_id: s.tenantId,
+    code: `${code}_${Math.random().toString(36).slice(2, 6)}`,
+    name,
+    employee_can_request: formData.get("employee_can_request") === "on",
+    requires_certificate: formData.get("requires_certificate") === "on",
+    active: true,
+    sort: 500,
+  });
+  if (error) throw new Error("No se pudo agregar. ¿Corriste 0015_leave_types.sql?");
+  touch();
+}
+
+export async function updateLeaveType(formData: FormData) {
+  const s = await requireStaff();
+  const id = String(formData.get("id"));
+  const db = createAdminClient();
+  const { error } = await db
+    .from("leave_types")
+    .update({
+      name: String(formData.get("name") ?? "").trim(),
+      employee_can_request: formData.get("employee_can_request") === "on",
+      requires_certificate: formData.get("requires_certificate") === "on",
+      active: formData.get("active") === "on",
+    })
+    .eq("id", id)
+    .eq("tenant_id", s.tenantId!);
+  if (error) throw new Error(error.message);
+  touch();
 }

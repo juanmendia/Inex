@@ -73,7 +73,7 @@ export async function createEmployee(_prev: string | null, formData: FormData): 
       return (error ?? retry.error)?.message ?? "No se pudo guardar la ficha.";
     }
     empId = retry.data.id;
-    await rememberTemp(db, empId, pass);
+    await rememberTemp(db, retry.data.id, pass);
   } else {
     await rememberTemp(db, data.id, pass);
   }

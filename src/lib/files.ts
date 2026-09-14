@@ -77,6 +77,26 @@ export async function uploadPunchPhoto(opts: { tenantId: string; file: File }) {
   return { path: storagePath };
 }
 
+export async function uploadLeaveAttachment(opts: { tenantId: string; userId: string | null; file: File }) {
+  const type = opts.file.type || "";
+  const name = opts.file.name.toLowerCase();
+  const okImg = type.startsWith("image/");
+  const okPdf = type === "application/pdf" || name.endsWith(".pdf");
+  if (!okImg && !okPdf) return { error: "El certificado tiene que ser foto o PDF." };
+  if (opts.file.size > 8 * 1024 * 1024) return { error: "El archivo es muy pesado (máx. 8 MB)." };
+  await ensureBucket();
+  const db = createAdminClient();
+  const ext = okPdf ? "pdf" : type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
+  const storagePath = `${opts.tenantId}/licencias/${crypto.randomUUID()}.${ext}`;
+  const buf = Buffer.from(await opts.file.arrayBuffer());
+  const up = await db.storage.from(BUCKET).upload(storagePath, buf, {
+    contentType: okPdf ? "application/pdf" : type || "image/jpeg",
+    upsert: false,
+  });
+  if (up.error) return { error: up.error.message };
+  return { path: storagePath };
+}
+
 export async function signedUrl(storagePath: string) {
   const db = createAdminClient();
   const { data, error } = await db.storage.from(BUCKET).createSignedUrl(storagePath, 120);
