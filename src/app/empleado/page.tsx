@@ -73,7 +73,7 @@ export default async function EmpleadoHome() {
           </p>
           <p className="mt-1 text-lg font-semibold">{next === "in" ? "Registrá la entrada" : "Registrá la salida"}</p>
           <div className="mt-4">
-            <PunchPad next={next} />
+            <PunchPad next={next} hasFace={Boolean((me as { face_photo_path?: string | null } | null)?.face_photo_path)} />
           </div>
         </div>
       ) : null}

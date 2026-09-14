@@ -29,7 +29,7 @@ export default async function FichajePage() {
         <p className="text-sm text-zinc-500">Hoy</p>
         <p className="mt-1 text-2xl font-semibold">{next === "in" ? "Entrada" : "Salida"}</p>
         <div className="mt-6">
-          <PunchPad next={next} />
+          <PunchPad next={next} hasFace={Boolean((me as { face_photo_path?: string | null } | null)?.face_photo_path)} />
         </div>
         <ul className="mt-6 space-y-2 text-sm">
           {(today ?? []).map((r) => {

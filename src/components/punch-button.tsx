@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { punch } from "@/modules/attendance/actions";
 
 const DEVICE_KEY = "inex_punch_device";
@@ -34,17 +34,33 @@ function friendlyActionError(e: unknown) {
   return raw || "No se pudo fichar.";
 }
 
-export function PunchPad({ next }: { next: "in" | "out" }) {
+export function PunchPad({ next, hasFace }: { next: "in" | "out"; hasFace: boolean }) {
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [cam, setCam] = useState(false);
   const [busy, start] = useTransition();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => () => stopCam(), []);
+  useEffect(() => {
+    if (cam && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      void videoRef.current.play();
+    }
+  }, [cam]);
   useEffect(() => () => (preview ? URL.revokeObjectURL(preview) : undefined), [preview]);
 
-  function onPhoto(file: File | undefined) {
-    if (!file) return;
+  function stopCam() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCam(false);
+  }
+
+  function setShot(file: File) {
     setPhoto(file);
     setPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -52,19 +68,49 @@ export function PunchPad({ next }: { next: "in" | "out" }) {
     });
   }
 
+  async function openCam() {
+    setErr(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setCam(true);
+    } catch {
+      fileRef.current?.click();
+    }
+  }
+
+  function snap() {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    const c = document.createElement("canvas");
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
+    c.getContext("2d")!.drawImage(v, 0, 0);
+    c.toBlob(
+      (blob) => {
+        if (!blob) return;
+        setShot(new File([blob], "cara.jpg", { type: "image/jpeg" }));
+        stopCam();
+      },
+      "image/jpeg",
+      0.85,
+    );
+  }
+
   function go(punch_type: "in" | "out") {
     start(async () => {
       setErr(null);
       setOk(null);
       if (!photo) {
-        setErr("Sacate una foto de la cara antes de fichar.");
+        setErr(hasFace ? "Sacate una foto al fichar." : "La primera vez tenés que sacarte una foto de la cara. Queda de referencia para RRHH.");
         return;
       }
       const pos = await readGps();
       if (!pos) {
-        setErr(
-          "El navegador no dio la ubicación. En la PC: permití ubicación para este sitio (candado de la barra). Si sigue fallando, fichá desde el celular.",
-        );
+        setErr("El navegador no dio la ubicación. Permití ubicación o fichá desde el celular.");
         return;
       }
       const fd = new FormData();
@@ -92,19 +138,43 @@ export function PunchPad({ next }: { next: "in" | "out" }) {
 
   return (
     <div>
-      <label className="mb-3 block text-sm">
-        Foto de tu cara (la cámara se abre en el celular)
-        <input
-          type="file"
-          accept="image/*"
-          capture="user"
-          className="mt-1 block w-full text-xs"
-          onChange={(e) => onPhoto(e.target.files?.[0])}
-        />
-      </label>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) setShot(f);
+        }}
+      />
+      {!hasFace ? (
+        <p className="mb-2 text-sm font-medium">Primera vez: sacate una foto de la cara. RRHH la usa de referencia.</p>
+      ) : (
+        <p className="mb-2 text-sm" style={{ color: "var(--muted)" }}>
+          Foto al fichar (cada entrada/salida)
+        </p>
+      )}
       {preview ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={preview} alt="Vista previa" className="mb-3 h-28 w-28 rounded-xl object-cover" />
+        <img src={preview} alt="Vista previa" className="mb-3 h-32 w-32 rounded-xl object-cover" />
+      ) : null}
+      <button type="button" className="btn btn-primary mb-4 w-full" onClick={() => void openCam()}>
+        {preview ? "Sacar otra foto" : "Abrir cámara"}
+      </button>
+      {cam ? (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black">
+          <video ref={videoRef} playsInline autoPlay muted className="min-h-0 flex-1 object-cover" />
+          <div className="flex gap-2 p-4">
+            <button type="button" className="btn btn-primary flex-1" onClick={snap}>
+              Capturar
+            </button>
+            <button type="button" className="btn btn-ghost flex-1 text-white" onClick={stopCam}>
+              Cancelar
+            </button>
+          </div>
+        </div>
       ) : null}
       <div className="grid grid-cols-2 gap-3">
         <button
@@ -132,9 +202,6 @@ export function PunchPad({ next }: { next: "in" | "out" }) {
         </p>
       ) : null}
       {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
-      <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
-        Podés fichar desde el celular o la PC. En la PC el mapa del navegador suele fallar o quedar a cientos de metros: si te rechaza, usá el celular. El primer dispositivo (PC o celu) queda atado a tu usuario.
-      </p>
     </div>
   );
 }

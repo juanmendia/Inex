@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { Shell } from "@/components/shell";
 import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { updateEmployee, resetPunchDevice } from "@/modules/employees/actions";
+import { updateEmployee, resetPunchDevice, validateFacePhoto, deleteFacePhoto } from "@/modules/employees/actions";
 import { saveEmployeeAddon } from "@/modules/agreements/actions";
 import { addNovelty, loadOvertimeFromAttendance, updateNovelty, deleteNovelty } from "@/modules/payroll/actions";
 import { OffboardForm } from "../offboard-form";
+import { signedUrl } from "@/lib/files";
 
 export default async function FichaEmpleado({
   params,
@@ -26,6 +27,16 @@ export default async function FichaEmpleado({
     .eq("tenant_id", s.tenantId!)
     .maybeSingle();
   if (!emp) notFound();
+  const facePath = (emp as { face_photo_path?: string | null }).face_photo_path;
+  const faceOk = Boolean((emp as { face_photo_validated?: boolean }).face_photo_validated);
+  let faceUrl: string | null = null;
+  if (facePath) {
+    try {
+      faceUrl = await signedUrl(facePath);
+    } catch {
+      faceUrl = null;
+    }
+  }
 
   const year = new Date().getFullYear();
   const month = new Date().getMonth() + 1;
@@ -131,6 +142,41 @@ export default async function FichaEmpleado({
           <p>Celular de fichaje vinculado. Si cambió de teléfono o prestó el usuario, desvinculá para que el próximo fichaje ate el nuevo.</p>
           <button className="btn btn-ghost mt-2">Desvincular celular</button>
         </form>
+      ) : null}
+      {tab === "laboral" ? (
+        <div className="panel mt-3 p-5 text-sm">
+          <p className="text-xs tracking-widest uppercase" style={{ color: "var(--muted)" }}>
+            Foto de referencia (primera vez)
+          </p>
+          {faceUrl ? (
+            <div className="mt-3 flex flex-wrap items-start gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={faceUrl} alt="Foto de referencia" className="h-28 w-28 rounded-xl object-cover" />
+              <div>
+                <p className="font-medium">{faceOk ? "Validada por RRHH" : "Primera foto — pendiente de validar"}</p>
+                <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                  Es la cara que sacó la primera vez que fichó. Si no es la persona, borrala: la próxima vez tiene que volver a sacarse la foto.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {!faceOk ? (
+                    <form action={validateFacePhoto}>
+                      <input type="hidden" name="id" value={emp.id} />
+                      <button className="btn btn-primary">Validar</button>
+                    </form>
+                  ) : null}
+                  <form action={deleteFacePhoto}>
+                    <input type="hidden" name="id" value={emp.id} />
+                    <button className="btn btn-ghost">Eliminar foto</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2" style={{ color: "var(--muted)" }}>
+              Todavía no hay foto de referencia. La primera vez que fiche, el sistema se la pide.
+            </p>
+          )}
+        </div>
       ) : null}
       {tab === "laboral" ? (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

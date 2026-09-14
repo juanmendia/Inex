@@ -162,6 +162,13 @@ export async function punch(formData: FormData): Promise<string | null> {
   if (!bound) {
     await db.from("employees").update({ punch_device_id: deviceId }).eq("id", me.id);
   }
+  const face = (me as { face_photo_path?: string | null }).face_photo_path;
+  if (!face && photoPath) {
+    const faceUp = await db.from("employees").update({ face_photo_path: photoPath, face_photo_validated: false }).eq("id", me.id);
+    if (faceUp.error) {
+      await db.from("employees").update({ face_photo_path: photoPath }).eq("id", me.id);
+    }
+  }
   revalidatePath("/empleado");
   revalidatePath("/empleado/fichaje");
   revalidatePath("/rrhh/asistencia");
