@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSessionContext } from "@/lib/auth/session";
 import { isStaff } from "@/lib/auth/roles";
 import { getMyEmployee } from "@/lib/files";
+import { notifyStaff, notifyUsers } from "@/lib/files";
 import { requireEmployee } from "@/lib/auth/session";
 
 export async function createTicket(formData: FormData) {
@@ -35,6 +36,12 @@ export async function createTicket(formData: FormData) {
     author_id: s.userId,
     body,
   });
+  await notifyStaff(
+    s.tenantId!,
+    "Nueva consulta",
+    `${me.first_name} ${me.last_name}: ${subject}`,
+    `/rrhh/consultas?id=${data.id}`,
+  );
   revalidatePath("/empleado/consultas");
   revalidatePath("/rrhh/consultas");
 }
@@ -65,6 +72,12 @@ export async function addTicketMessage(formData: FormData) {
   });
   if (isStaff(s.roles)) {
     await db.from("hr_tickets").update({ status: "answered" }).eq("id", ticketId);
+    const { data: emp } = await db.from("employees").select("user_id").eq("id", ticket.employee_id).maybeSingle();
+    if (emp?.user_id) {
+      await notifyUsers(s.tenantId!, [emp.user_id], "RRHH respondió tu consulta", body.slice(0, 120), `/empleado/consultas?id=${ticketId}`);
+    }
+  } else {
+    await notifyStaff(s.tenantId!, "Mensaje en una consulta", body.slice(0, 120), `/rrhh/consultas?id=${ticketId}`);
   }
   revalidatePath("/empleado/consultas");
   revalidatePath("/rrhh/consultas");

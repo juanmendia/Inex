@@ -55,7 +55,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   const { data: tenantRows } = staffTenantIds.length
     ? await admin.from("tenants").select("id, name").in("id", staffTenantIds)
     : { data: [] as { id: string; name: string }[] };
-  const memberships = (tenantRows ?? []).map((t) => ({ id: t.id, name: t.name }));
+  let memberships = (tenantRows ?? []).map((t) => ({ id: t.id, name: t.name }));
   const allowedIds = new Set(memberships.map((m) => m.id));
 
   const jar = await cookies();
@@ -65,6 +65,11 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   if (wanted && allowedIds.has(wanted)) tenantId = wanted;
   else if (staffTenantIds.length === 1) tenantId = staffTenantIds[0]!;
   else if (allRoles.includes(RoleCode.EMPLOYEE)) tenantId = profile?.tenant_id ?? null;
+
+  if (tenantId && !memberships.some((m) => m.id === tenantId)) {
+    const { data: t } = await admin.from("tenants").select("id, name").eq("id", tenantId).maybeSingle();
+    if (t) memberships = [...memberships, { id: t.id, name: t.name }];
+  }
 
   const roles = [
     ...new Set(

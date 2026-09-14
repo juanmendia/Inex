@@ -2,16 +2,23 @@ import { Shell } from "@/components/shell";
 import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveTenantSettings } from "@/modules/events/actions";
+import { SucursalesPanel } from "./sucursales-panel";
 
 export default async function ConfigPage() {
   const s = await requireStaff();
   const db = createAdminClient();
   const { data: tenant } = await db.from("tenants").select("name").eq("id", s.tenantId!).single();
   const { data: settings } = await db.from("tenant_settings").select("*").eq("tenant_id", s.tenantId!).maybeSingle();
+  const { data: locations } = await db
+    .from("work_locations")
+    .select("id, name, latitude, longitude, radius_meters")
+    .eq("tenant_id", s.tenantId!)
+    .order("name");
 
   return (
     <Shell area="rrhh" title="Configuración" session={s}>
-      <form action={saveTenantSettings} className="panel max-w-lg space-y-3 p-6">
+      <div className="mx-auto max-w-3xl space-y-6">
+      <form action={saveTenantSettings} className="panel space-y-3 p-6">
         <label className="block text-sm">
           Nombre de la empresa
           <input name="name" defaultValue={tenant?.name} className="field mt-1" />
@@ -47,6 +54,9 @@ export default async function ConfigPage() {
         </label>
         <button className="btn btn-primary">Guardar</button>
       </form>
+
+      <SucursalesPanel locations={locations ?? []} />
+      </div>
     </Shell>
   );
 }

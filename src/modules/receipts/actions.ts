@@ -5,6 +5,32 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff } from "@/lib/auth/session";
 import { audit, getMyEmployee, signedUrlForDocument, uploadPrivatePdf } from "@/lib/files";
+import { generatePeriodReceipts, stampSignedPayslip } from "@/lib/generate-receipts";
+
+export async function generateReceipts(_prev: string | null, formData: FormData): Promise<string | null> {
+  const s = await requireStaff();
+  const year = Number(formData.get("period_year"));
+  const month = Number(formData.get("period_month"));
+  const kind = String(formData.get("kind") ?? "haberes") || "haberes";
+  const employeeId = String(formData.get("employee_id") ?? "").trim();
+  if (!year || !month) return "Indicá el período.";
+  try {
+    const made = await generatePeriodReceipts({
+      tenantId: s.tenantId!,
+      userId: s.userId,
+      year,
+      month,
+      kind,
+      employeeId: employeeId || undefined,
+    });
+    revalidatePath("/rrhh/recibos");
+    revalidatePath("/empleado/recibos");
+    if (!made) return "Nada nuevo: los recibos de ese período ya están firmados. Los pendientes se vuelven a armar.";
+    return `Listo: se generaron ${made} recibo(s) de ${String(month).padStart(2, "0")}/${year}.`;
+  } catch (e) {
+    return e instanceof Error ? e.message : "No se pudieron generar los recibos.";
+  }
+}
 
 export async function publishReceipt(formData: FormData) {
   const s = await requireStaff();
@@ -152,6 +178,15 @@ export async function signReceipt(receiptId: string, action: "conform" | "non_co
     .from("documents")
     .update({ status: action === "conform" ? "signed" : "non_conforming" })
     .eq("id", rec.document_id);
+
+  await stampSignedPayslip({
+    tenantId: s.tenantId!,
+    receiptId: rec.id,
+    signerName: `${me.last_name}, ${me.first_name}`,
+    at: new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }),
+    ip,
+    conform: action === "conform",
+  });
 
   await audit({
     tenantId: s.tenantId,

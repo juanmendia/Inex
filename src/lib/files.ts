@@ -13,7 +13,7 @@ export async function ensureBucket() {
 
 export async function uploadPrivatePdf(opts: {
   tenantId: string;
-  userId: string;
+  userId: string | null;
   folder: string;
   file: File;
 }) {
@@ -40,12 +40,41 @@ export async function uploadPrivatePdf(opts: {
       storage_path: storagePath,
       mime_type: "application/pdf",
       size_bytes: opts.file.size,
-      created_by: opts.userId,
+      created_by: opts.userId || null,
     })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
   return { fileId: fileRow.id, storagePath };
+}
+
+export async function uploadPrivatePdfBytes(opts: {
+  tenantId: string;
+  userId: string | null;
+  folder: string;
+  bytes: Buffer;
+  filename?: string;
+}) {
+  return uploadPrivatePdf({
+    tenantId: opts.tenantId,
+    userId: opts.userId ?? "",
+    folder: opts.folder,
+    file: new File([new Uint8Array(opts.bytes)], opts.filename ?? "recibo.pdf", { type: "application/pdf" }),
+  });
+}
+
+export async function uploadPunchPhoto(opts: { tenantId: string; file: File }) {
+  const type = opts.file.type || "image/jpeg";
+  if (!type.startsWith("image/")) return { error: "La foto tiene que ser una imagen." };
+  if (opts.file.size > 6 * 1024 * 1024) return { error: "La foto es muy pesada." };
+  await ensureBucket();
+  const db = createAdminClient();
+  const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
+  const storagePath = `${opts.tenantId}/punch/${crypto.randomUUID()}.${ext}`;
+  const buf = Buffer.from(await opts.file.arrayBuffer());
+  const up = await db.storage.from(BUCKET).upload(storagePath, buf, { contentType: type, upsert: false });
+  if (up.error) return { error: up.error.message };
+  return { path: storagePath };
 }
 
 export async function signedUrl(storagePath: string) {
@@ -64,13 +93,25 @@ export async function signedUrlForDocument(documentId: string) {
   return signedUrl(file.storage_path);
 }
 
-export async function notifyUsers(tenantId: string, userIds: string[], title: string, body?: string) {
+export async function notifyUsers(tenantId: string, userIds: string[], title: string, body?: string, href?: string) {
   const ids = userIds.filter(Boolean);
   if (!ids.length) return;
   const db = createAdminClient();
-  await db.from("notifications").insert(
-    ids.map((user_id) => ({ tenant_id: tenantId, user_id, title, body: body ?? null })),
-  );
+  const rows = ids.map((user_id) => ({ tenant_id: tenantId, user_id, title, body: body ?? null, href: href ?? null }));
+  const { error } = await db.from("notifications").insert(rows);
+  if (error) {
+    await db.from("notifications").insert(ids.map((user_id) => ({ tenant_id: tenantId, user_id, title, body: body ?? null })));
+  }
+}
+
+export async function notifyStaff(tenantId: string, title: string, body?: string, href?: string) {
+  const db = createAdminClient();
+  const { data } = await db
+    .from("user_roles")
+    .select("user_id")
+    .eq("tenant_id", tenantId)
+    .in("role", ["tenant_admin", "hr_admin", "hr_operator"]);
+  await notifyUsers(tenantId, [...new Set((data ?? []).map((r) => r.user_id))], title, body, href);
 }
 
 export async function getMyEmployee(session: SessionContext) {

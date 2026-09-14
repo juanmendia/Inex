@@ -1,0 +1,22 @@
+/** Catálogo de nombres de CCT habituales en Argentina. No son escalas salariales (cambian por paritaria). */
+export const TYPICAL_AGREEMENTS = [
+  { name: "Comercio (CCT 130/75)", monthly_hours: 192, notes: "Empleados de comercio · FAECyS" },
+  { name: "Construcción UOCRA", monthly_hours: 176, notes: "UOCRA" },
+  { name: "Gastronómicos (UTHGRA)", monthly_hours: 192, notes: "Hoteles y gastronomía" },
+  { name: "Sanidad (ATSA / FATSA)", monthly_hours: 176, notes: "Clínicas y sanatorios" },
+  { name: "Metalúrgicos (UOM)", monthly_hours: 176, notes: "UOM" },
+  { name: "Químicos y petroquímicos", monthly_hours: 176, notes: "FSTQyP" },
+  { name: "Plásticos", monthly_hours: 176, notes: "UOYEP" },
+  { name: "Textiles", monthly_hours: 176, notes: "AOT" },
+  { name: "Camioneros", monthly_hours: 176, notes: "Federación de Camioneros" },
+  { name: "Mecánicos (SMATA)", monthly_hours: 176, notes: "SMATA" },
+  { name: "Bancarios", monthly_hours: 176, notes: "La Bancaria" },
+  { name: "Seguridad (UPSA / SUTCAPRA)", monthly_hours: 192, notes: "Vigilancia privada" },
+  { name: "Maestranza y limpieza", monthly_hours: 192, notes: "SOEME / afines" },
+  { name: "Encargados de edificios (SUTERH)", monthly_hours: 192, notes: "SUTERH" },
+  { name: "Rural (UATRE)", monthly_hours: 176, notes: "Trabajo agrario" },
+  { name: "Farmacia", monthly_hours: 176, notes: "FATSA farmacias" },
+  { name: "Call center", monthly_hours: 176, notes: "CCT call centers" },
+  { name: "Informática / software", monthly_hours: 176, notes: "A menudo LCT sin CCT propio" },
+  { name: "Ley de contrato de trabajo (sin CCT)", monthly_hours: 176, notes: "Fuera de convenio" },
+] as const;

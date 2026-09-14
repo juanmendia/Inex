@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { Shell } from "@/components/shell";
 import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { updateEmployee } from "@/modules/employees/actions";
-import { applySalaryChange } from "@/modules/agreements/actions";
+import { updateEmployee, resetPunchDevice } from "@/modules/employees/actions";
+import { saveEmployeeAddon } from "@/modules/agreements/actions";
+import { addNovelty, loadOvertimeFromAttendance, updateNovelty, deleteNovelty } from "@/modules/payroll/actions";
+import { OffboardForm } from "../offboard-form";
 
 export default async function FichaEmpleado({
   params,
@@ -25,12 +27,22 @@ export default async function FichaEmpleado({
     .maybeSingle();
   if (!emp) notFound();
 
-  const [{ data: receipts }, { data: tickets }, { data: agreements }, { data: raises }, { data: branches }] = await Promise.all([
+  const year = new Date().getFullYear();
+  const month = new Date().getMonth() + 1;
+  const [{ data: receipts }, { data: tickets }, { data: agreements }, { data: raises }, { data: branches }, { data: extras }] =
+    await Promise.all([
     db.from("receipts").select("id, period_year, period_month, kind, status").eq("employee_id", id).order("period_year", { ascending: false }),
     db.from("hr_tickets").select("id, subject, status").eq("employee_id", id).order("created_at", { ascending: false }),
     db.from("collective_agreements").select("id, name").eq("tenant_id", s.tenantId!).order("name"),
     db.from("salary_changes").select("id, previous_amount, new_amount, percent, effective_on, note").eq("employee_id", id).order("effective_on", { ascending: false }).limit(8),
     db.from("work_locations").select("id, name").eq("tenant_id", s.tenantId!).order("name"),
+    db
+      .from("payroll_novelties")
+      .select("id, concept, amount, hours, rate_percent, note, status")
+      .eq("employee_id", id)
+      .eq("period_year", year)
+      .eq("period_month", month)
+      .order("created_at", { ascending: false }),
   ]);
 
   const dept = emp.departments as { name: string } | { name: string }[] | null;
@@ -43,6 +55,7 @@ export default async function FichaEmpleado({
     ["laboral", "Laboral"],
     ["recibos", "Recibos"],
     ["consultas", "Consultas"],
+    ["baja", "Baja"],
   ] as const;
 
   return (
@@ -62,7 +75,7 @@ export default async function FichaEmpleado({
         ))}
       </div>
       {(tab === "personal" || tab === "laboral") && (
-        <form action={updateEmployee} className="mt-4 grid max-w-xl gap-2 rounded-xl bg-white p-4 ring-1 ring-zinc-200">
+        <form action={updateEmployee} className="panel mt-4 grid gap-3 p-5 md:grid-cols-2">
           <input type="hidden" name="id" value={emp.id} />
           {tab === "personal" ? (
             <>
@@ -109,20 +122,110 @@ export default async function FichaEmpleado({
               <input type="hidden" name="birth_date" value={emp.birth_date ?? ""} />
             </>
           )}
-          <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white">Guardar</button>
+          <button className="btn btn-primary md:col-span-2">Guardar</button>
         </form>
       )}
+      {tab === "laboral" && emp.punch_device_id ? (
+        <form action={resetPunchDevice} className="panel mt-3 p-5 text-sm">
+          <input type="hidden" name="id" value={emp.id} />
+          <p>Celular de fichaje vinculado. Si cambió de teléfono o prestó el usuario, desvinculá para que el próximo fichaje ate el nuevo.</p>
+          <button className="btn btn-ghost mt-2">Desvincular celular</button>
+        </form>
+      ) : null}
       {tab === "laboral" ? (
-        <form action={applySalaryChange} className="mt-4 grid max-w-xl gap-2 rounded-xl bg-white p-4 ring-1 ring-zinc-200">
-          <p className="text-xs tracking-widest uppercase text-zinc-500">Sueldo y aumentos</p>
-          <p className="text-sm">Básico actual: {emp.base_salary ?? 0}</p>
-          <input type="hidden" name="employee_id" value={emp.id} />
-          <input name="new_amount" type="number" step="0.01" placeholder="Nuevo sueldo" className="rounded-lg border px-3 py-2 text-sm" />
-          <input name="percent" type="number" step="0.01" placeholder="O aumento %" className="rounded-lg border px-3 py-2 text-sm" />
-          <input name="effective_on" type="date" className="rounded-lg border px-3 py-2 text-sm" />
-          <input name="note" placeholder="Nota (paritaria, acuerdo, etc.)" className="rounded-lg border px-3 py-2 text-sm" />
-          <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white">Aplicar</button>
-          <ul className="text-xs text-zinc-500">
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <form action={saveEmployeeAddon} className="panel grid gap-2 p-5">
+            <p className="text-xs tracking-widest uppercase text-zinc-500">Plus fijo mensual</p>
+            <p className="text-sm">
+              Básico convenio + plus = {emp.base_salary ?? 0}. Los aumentos del CCT están en Convenios.
+            </p>
+            <input type="hidden" name="employee_id" value={emp.id} />
+            <input
+              name="salary_addon"
+              type="number"
+              step="0.01"
+              defaultValue={(emp as { salary_addon?: number }).salary_addon ?? 0}
+              placeholder="Plus / adicional fijo"
+              className="rounded-lg border px-3 py-2 text-sm"
+            />
+            <button className="btn btn-primary">Guardar plus</button>
+          </form>
+
+          <div className="panel p-5">
+            <p className="text-xs tracking-widest uppercase text-zinc-500">Horas extras del mes</p>
+            <p className="mt-1 text-sm text-zinc-600">
+              Se arman solas con el fichaje y los % del convenio (sábado, domingo, feriado, noche). Después las
+              podés corregir.
+            </p>
+            <form action={loadOvertimeFromAttendance} className="mt-3 flex flex-wrap gap-2">
+              <input type="hidden" name="employee_id" value={emp.id} />
+              <input type="hidden" name="period_year" value={year} />
+              <input type="hidden" name="period_month" value={month} />
+              <button className="btn btn-primary">Armar extras con fichajes</button>
+            </form>
+            <ul className="mt-3 divide-y text-sm">
+              {(extras ?? [])
+                .filter((n) => n.hours != null)
+                .map((n) => (
+                  <li key={n.id} className="py-2">
+                    <p>
+                      {n.concept} · {n.hours} h · {n.amount}
+                    </p>
+                    <form action={updateNovelty} className="mt-1 flex flex-wrap gap-2">
+                      <input type="hidden" name="id" value={n.id} />
+                      <input name="hours" type="number" step="0.25" defaultValue={n.hours ?? ""} className="field max-w-24" />
+                      <select name="rate_percent" defaultValue={n.rate_percent ?? 150} className="field max-w-28">
+                        <option value="150">150%</option>
+                        <option value="200">200%</option>
+                        <option value="100">100%</option>
+                      </select>
+                      <button className="btn btn-ghost text-xs">Recalcular</button>
+                    </form>
+                    <form action={deleteNovelty}>
+                      <input type="hidden" name="id" value={n.id} />
+                      <button className="text-xs text-red-800">Quitar</button>
+                    </form>
+                  </li>
+                ))}
+            </ul>
+          </div>
+
+          <div className="panel p-5">
+            <p className="text-xs tracking-widest uppercase text-zinc-500">Otros adicionales del mes</p>
+            <form action={addNovelty} className="mt-2 grid gap-2 sm:grid-cols-3">
+              <input type="hidden" name="kind" value="other" />
+              <input type="hidden" name="employee_id" value={emp.id} />
+              <input type="hidden" name="period_year" value={year} />
+              <input type="hidden" name="period_month" value={month} />
+              <select name="concept" className="field">
+                <option value="Premio">Premio</option>
+                <option value="Viático">Viático</option>
+                <option value="Presentismo">Presentismo</option>
+                <option value="Antigüedad">Antigüedad extra</option>
+                <option value="Otro">Otro</option>
+              </select>
+              <input name="amount" type="number" step="0.01" placeholder="Importe" className="field" required />
+              <input name="note" placeholder="Detalle (opcional)" className="field" />
+              <button className="btn btn-primary sm:col-span-3">Agregar adicional</button>
+            </form>
+            <ul className="mt-3 divide-y text-sm">
+              {(extras ?? [])
+                .filter((n) => n.hours == null)
+                .map((n) => (
+                  <li key={n.id} className="flex items-center justify-between py-2">
+                    <span>
+                      {n.concept} · {n.amount}
+                    </span>
+                    <form action={deleteNovelty}>
+                      <input type="hidden" name="id" value={n.id} />
+                      <button className="text-xs text-red-800">Quitar</button>
+                    </form>
+                  </li>
+                ))}
+            </ul>
+          </div>
+
+          <ul className="text-xs text-zinc-500 lg:col-span-2">
             {(raises ?? []).map((r) => (
               <li key={r.id}>
                 {r.effective_on}: {r.previous_amount} → {r.new_amount}
@@ -130,7 +233,7 @@ export default async function FichaEmpleado({
               </li>
             ))}
           </ul>
-        </form>
+        </div>
       ) : null}
       {tab === "recibos" && (
         <ul className="mt-4 divide-y rounded-xl bg-white ring-1 ring-zinc-200">
@@ -156,6 +259,17 @@ export default async function FichaEmpleado({
           {!tickets?.length ? <li className="px-4 py-3 text-sm text-zinc-500">Sin consultas.</li> : null}
         </ul>
       )}
+      {tab === "baja" &&
+        (emp.status === "active" ? (
+          <OffboardForm employeeId={emp.id} name={`${emp.first_name} ${emp.last_name}`} />
+        ) : (
+          <p className="mt-4 text-sm text-zinc-600">
+            Esta persona ya está de baja
+            {emp.terminated_at ? ` desde ${emp.terminated_at}` : ""}.
+            {emp.termination_reason ? ` Motivo: ${emp.termination_reason}.` : ""} Los recibos siguen en la
+            ficha. Para volver a darle acceso, usá Reactivar en la lista de empleados.
+          </p>
+        ))}
     </Shell>
   );
 }

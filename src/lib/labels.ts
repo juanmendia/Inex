@@ -34,9 +34,20 @@ export const TICKET_STATUS: Record<string, string> = {
   closed: "Cerrada",
 };
 
+export const TICKET_CATEGORY: Record<string, string> = {
+  receipt: "Recibo",
+  salary: "Sueldo",
+  vacation: "Vacaciones",
+  leave: "Licencia",
+  documents: "Documentación",
+  health: "Salud",
+  personal: "Personal",
+  other: "Otro",
+};
+
 export const EMPLOYEE_STATUS: Record<string, string> = {
   active: "Activo",
-  inactive: "Inactivo",
+  inactive: "Baja",
   suspended: "Suspendido",
 };
 
@@ -53,6 +64,7 @@ export const PAYROLL_RUN: Record<string, string> = {
   approved: "Aprobada",
   closed: "Cerrada",
   cancelled: "Anulada",
+  final: "Liquidación final",
 };
 
 export const TENANT_STATUS: Record<string, string> = {

@@ -51,6 +51,15 @@ async function finishLogin(userId: string) {
   await admin.auth.admin.updateUserById(userId, {
     app_metadata: { ...user.user?.app_metadata, roles, must_change_password: must },
   });
+  if (roles.includes("employee") && !roles.includes("tenant_admin") && !roles.includes("super_admin")) {
+    const { data: emp } = await admin.from("employees").select("status").eq("user_id", userId).maybeSingle();
+    if (emp && emp.status !== "active") {
+      const supabase = await createClient();
+      await supabase.auth.signOut();
+      await clearRolesCookie();
+      return { error: "Tu ficha está dada de baja. Consultá a RRHH." as const };
+    }
+  }
   if (must) redirect("/login/clave");
   redirect(homeForRoles(roles));
 }
@@ -112,6 +121,7 @@ export async function activateAccount(_prev: string | null, formData: FormData):
     app_metadata: { roles: ["employee"], must_change_password: false, dni },
   });
   if (error) return "No se pudo activar la cuenta. Probá de nuevo.";
+  await admin.from("employees").update({ temp_password: null }).eq("id", emp.id);
 
   const supabase = await createClient();
   const { data, error: signErr } = await supabase.auth.signInWithPassword({ email, password });
@@ -136,6 +146,7 @@ export async function setPasswordFirstTime(_prev: string | null, formData: FormD
   await admin.auth.admin.updateUserById(user.id, {
     app_metadata: { ...user.app_metadata, must_change_password: false },
   });
+  await admin.from("employees").update({ temp_password: null }).eq("user_id", user.id);
   const { data: roleRows } = await admin.from("user_roles").select("role").eq("user_id", user.id);
   const roles = (roleRows ?? []).map((r) => r.role as string);
   redirect(homeForRoles(roles));
@@ -176,6 +187,7 @@ export async function completeRecovery(_prev: string | null, formData: FormData)
     await admin.auth.admin.updateUserById(user.id, {
       app_metadata: { ...user.app_metadata, must_change_password: false },
     });
+    await admin.from("employees").update({ temp_password: null }).eq("user_id", user.id);
   }
   redirect("/login");
 }
