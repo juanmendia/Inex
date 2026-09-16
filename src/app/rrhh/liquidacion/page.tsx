@@ -3,6 +3,7 @@ import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addNovelty, runPayroll, loadOvertimeFromAttendance, updateNovelty } from "@/modules/payroll/actions";
 import { PAYROLL_NOVELTY, PAYROLL_RUN } from "@/lib/labels";
+import { PAYROLL_CONCEPTS } from "@/lib/payroll-concepts";
 
 export default async function LiquidacionPage() {
   const s = await requireStaff();
@@ -54,7 +55,7 @@ export default async function LiquidacionPage() {
 
         <form action={addNovelty} className="panel space-y-3 p-5">
           <p className="text-xs tracking-widest uppercase" style={{ color: "var(--muted)" }}>
-            Extra a mano (si querés corregir)
+            Otro concepto (código de liquidación)
           </p>
           <input type="hidden" name="kind" value="extra" />
           <select name="employee_id" className="field">
@@ -80,7 +81,7 @@ export default async function LiquidacionPage() {
 
       <form action={addNovelty} className="panel mt-4 grid gap-2 p-5 md:grid-cols-5">
         <p className="text-xs tracking-widest uppercase md:col-span-5" style={{ color: "var(--muted)" }}>
-          Otro concepto (importe manual)
+          Otro concepto (código de liquidación)
         </p>
         <input type="hidden" name="kind" value="other" />
         <select name="employee_id" className="field">
@@ -92,7 +93,13 @@ export default async function LiquidacionPage() {
         </select>
         <input name="period_year" type="number" defaultValue={year} className="field" />
         <input name="period_month" type="number" defaultValue={month} className="field" />
-        <input name="concept" placeholder="Premio, viático…" className="field" />
+        <select name="concept" className="field">
+          {PAYROLL_CONCEPTS.filter((c) => !c.auto).map((c) => (
+            <option key={c.code} value={`${c.code} ${c.name}`}>
+              {c.code} · {c.name}
+            </option>
+          ))}
+        </select>
         <input name="amount" type="number" step="0.01" placeholder="Importe" className="field" />
         <button className="btn btn-primary md:col-span-5">Cargar concepto</button>
       </form>

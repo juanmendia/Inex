@@ -53,7 +53,7 @@ export default async function VacacionesEmpleado() {
                 {label} · {r.starts_on} → {r.ends_on} · {TIME_OFF_STATUS[r.status] ?? r.status}
               </p>
               {certs[r.id] ? (
-                <a className="text-indigo-600" href={certs[r.id]} target="_blank" rel="noreferrer">
+                <a className="text-[#142236]" href={certs[r.id]} target="_blank" rel="noreferrer">
                   Ver certificado
                 </a>
               ) : null}

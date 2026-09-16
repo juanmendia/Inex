@@ -80,7 +80,7 @@ export default async function ConsultasRrhh({
                 return (
                   <div
                     key={m.id}
-                    className={`max-w-[90%] rounded-xl p-3 text-sm ${mine ? "bg-zinc-100" : "ml-auto bg-[#eef6f4]"}`}
+                    className={`max-w-[90%] rounded-xl p-3 text-sm ${mine ? "bg-zinc-100" : "ml-auto bg-[#e8f0ff]"}`}
                   >
                     <p className="text-xs font-medium" style={{ color: "var(--muted)" }}>
                       {mine ? who : "RRHH"}

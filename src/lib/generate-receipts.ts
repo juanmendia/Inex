@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { audit, notifyUsers, uploadPrivatePdfBytes } from "@/lib/files";
 import { payslipPdf, type Payslip, type PayslipLine } from "@/lib/payslip-pdf";
-import { roundMoney } from "@/lib/labels";
+import { buildPayslipLines } from "@/lib/payroll-concepts";
 
 const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
@@ -12,10 +12,6 @@ function named(raw: unknown): string | null {
 
 export function isSacMonth(month: number) {
   return month === 6 || month === 12;
-}
-
-function sacConcept(month: number) {
-  return month === 6 ? "SAC / Aguinaldo 1ra. cuota" : "SAC / Aguinaldo 2da. cuota";
 }
 
 type Emp = {
@@ -34,26 +30,7 @@ type Emp = {
 };
 
 function linesFor(kind: string, emp: Emp, extras: { concept: string; amount: number; hours: number | null }[], month: number): PayslipLine[] {
-  const base = Number(emp.base_salary ?? 0);
-  if (kind === "aguinaldo") {
-    const fromNov = extras.find((n) => /sac|aguinaldo/i.test(n.concept));
-    const amount = fromNov ? Number(fromNov.amount) : roundMoney(base / 2);
-    return [{ code: "500", concept: fromNov?.concept || sacConcept(month), qty: "1", earning: amount, deduction: 0 }];
-  }
-  const rows: PayslipLine[] = [{ code: "001", concept: "Sueldo básico", qty: "1", earning: base, deduction: 0 }];
-  extras
-    .filter((n) => !/sac|aguinaldo/i.test(n.concept))
-    .forEach((n, i) => {
-      const amt = Number(n.amount ?? 0);
-      rows.push({
-        code: String(100 + i).padStart(3, "0"),
-        concept: n.concept,
-        qty: n.hours ? String(n.hours) : "",
-        earning: amt >= 0 ? amt : 0,
-        deduction: amt < 0 ? Math.abs(amt) : 0,
-      });
-    });
-  return rows;
+  return buildPayslipLines({ kind, base: Number(emp.base_salary ?? 0), month, extras });
 }
 
 function toPayslip(opts: {
@@ -77,6 +54,7 @@ function toPayslip(opts: {
     name: `${opts.emp.last_name}, ${opts.emp.first_name}`,
     dni: opts.emp.dni,
     hireDate: opts.emp.hire_date,
+    payDate: new Date(opts.year, opts.month, 0).toLocaleDateString("es-AR"),
     branch: named(opts.emp.work_locations),
     category: [named(opts.emp.positions), named(opts.emp.departments)].filter(Boolean).join(" / ") || null,
     lines: linesFor(opts.kind, opts.emp, opts.extras, opts.month),

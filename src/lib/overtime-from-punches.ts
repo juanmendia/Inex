@@ -1,6 +1,30 @@
 import { isArHoliday, buenosAiresDate, buenosAiresMinutes } from "@/lib/ar-holidays";
 
-export type Punch = { recorded_at: string; punch_type: string | null; method: string | null };
+export type Punch = {
+  recorded_at: string;
+  punch_type: string | null;
+  method: string | null;
+  work_location_id?: string | null;
+};
+
+export type JourneyHours = {
+  dayStart?: string | null;
+  dayEnd?: string | null;
+  afternoonStart?: string | null;
+  afternoonEnd?: string | null;
+};
+
+function journeyMinutes(opts: JourneyHours) {
+  const start = parseHm(opts.dayStart, 8 * 60);
+  const end = parseHm(opts.dayEnd, 15 * 60);
+  if (opts.afternoonStart && opts.afternoonEnd) {
+    return (
+      Math.max(30, parseHm(opts.dayEnd, 12 * 60 + 30) - start) +
+      Math.max(30, parseHm(opts.afternoonEnd, 20 * 60 + 30) - parseHm(opts.afternoonStart, 16 * 60 + 30))
+    );
+  }
+  return Math.max(60, end - start);
+}
 
 function isOut(p: Punch) {
   return p.punch_type === "out" || String(p.method ?? "").endsWith(":out");
@@ -21,16 +45,13 @@ function addHours(map: Map<number, number>, rate: number, hours: number) {
 /** Extras según jornada y % del convenio (sábado fuera de horario, domingo, feriado, noche). */
 export function overtimeFromPunches(
   punches: Punch[],
-  opts: {
-    dayStart?: string | null;
-    dayEnd?: string | null;
-    afternoonStart?: string | null;
-    afternoonEnd?: string | null;
+  opts: JourneyHours & {
     rateWeekday?: number | null;
     rateSaturday?: number | null;
     rateSunday?: number | null;
     rateHoliday?: number | null;
     rateNight?: number | null;
+    locationHours?: Record<string, JourneyHours>;
   },
 ) {
   const weekday = opts.rateWeekday || 150;
@@ -38,14 +59,12 @@ export function overtimeFromPunches(
   const sunday = opts.rateSunday || 200;
   const holiday = opts.rateHoliday || 200;
   const night = opts.rateNight || 200;
-  const start = parseHm(opts.dayStart, 9 * 60);
-  const end = parseHm(opts.dayEnd, 13 * 60);
-  let journey = Math.max(30, end - start);
-  if (opts.afternoonStart && opts.afternoonEnd) {
-    journey += Math.max(30, parseHm(opts.afternoonEnd, 18 * 60) - parseHm(opts.afternoonStart, 14 * 60));
-  } else if (!opts.afternoonStart && opts.dayEnd) {
-    journey = Math.max(60, parseHm(opts.dayEnd, 18 * 60) - start);
-  }
+  const fallback: JourneyHours = {
+    dayStart: opts.dayStart,
+    dayEnd: opts.dayEnd,
+    afternoonStart: opts.afternoonStart,
+    afternoonEnd: opts.afternoonEnd,
+  };
   const byDay = new Map<string, Punch[]>();
   for (const p of punches) {
     const day = buenosAiresDate(p.recorded_at);
@@ -72,6 +91,8 @@ export function overtimeFromPunches(
       }
     }
     if (worked <= 1) continue;
+    const locId = ordered.find((p) => p.work_location_id)?.work_location_id;
+    const journey = journeyMinutes((locId && opts.locationHours?.[locId]) || fallback);
     const dow = new Date(`${day}T12:00:00-03:00`).getDay();
     if (isArHoliday(day)) {
       addHours(byRate, holiday, worked / 60);

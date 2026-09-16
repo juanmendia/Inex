@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Forward, Share2, X } from "lucide-react";
-import { getReceiptPdfUrl, getReceiptPdfUrlHr } from "@/modules/receipts/actions";
+import { Download, Forward, Share2, Trash2, X } from "lucide-react";
+import { getReceiptPdfUrl, getReceiptPdfUrlHr, deleteReceipt } from "@/modules/receipts/actions";
 import { SignButtons } from "@/components/sign-buttons";
+import { ConfirmForm } from "@/components/confirm-dialog";
 
 export function ReceiptViewer({
   receiptId,
@@ -46,7 +47,7 @@ export function ReceiptViewer({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-8">
-      <button className="absolute inset-0 bg-zinc-900/45 backdrop-blur-md" aria-label="Cerrar" onClick={onClose} />
+      <button className="absolute inset-0 bg-[#122033]/45 backdrop-blur-md" aria-label="Cerrar" onClick={onClose} />
       <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
           <p className="mr-auto text-sm font-medium">{title}</p>
@@ -77,6 +78,22 @@ export function ReceiptViewer({
           >
             <Forward size={16} /> Reenviar
           </a>
+          {hr ? (
+            <ConfirmForm
+              action={async (fd) => {
+                await deleteReceipt(fd);
+                onClose();
+              }}
+              title="¿Eliminar este recibo?"
+              body="Sale del portal del empleado. Después podés generarlo de nuevo."
+              confirm="Eliminar"
+            >
+              <input type="hidden" name="id" value={receiptId} />
+              <button type="submit" className="btn btn-ghost inline-flex items-center gap-1 text-sm text-red-700">
+                <Trash2 size={16} /> Eliminar
+              </button>
+            </ConfirmForm>
+          ) : null}
           <button className="btn btn-ghost" type="button" onClick={onClose}>
             <X size={18} />
           </button>

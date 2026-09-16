@@ -21,13 +21,13 @@ export default function RecuperarPage() {
             placeholder="DNI o correo personal"
             className="w-full rounded-xl border border-[#e4d9c7] px-3 py-2.5"
           />
-          {message ? <p className="text-sm text-[#1f5c56]">{message}</p> : null}
-          <button disabled={pending} className="w-full rounded-xl bg-[#1f5c56] py-3 text-sm text-[#f7f1e4]">
+          {message ? <p className="text-sm text-[#142236]">{message}</p> : null}
+          <button disabled={pending} className="w-full rounded-xl bg-[#142236] py-3 text-sm text-white">
             Enviar enlace
           </button>
         </form>
         <p className="mt-6 text-center text-sm">
-          <a href="/login" className="text-[#1f5c56]">
+          <a href="/login" className="text-[#142236]">
             Volver al ingreso
           </a>
         </p>

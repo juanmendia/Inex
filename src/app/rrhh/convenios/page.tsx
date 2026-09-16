@@ -216,7 +216,7 @@ export default async function ConveniosPage({
                   className="field w-24"
                   aria-label={`Porcentaje de aumento de ${r.name}`}
                 />
-                <button className="btn btn-primary text-xs">Aplicar %</button>
+                <button className="btn btn-primary whitespace-nowrap">Aplicar %</button>
               </form>
               <a href={`/rrhh/convenios?edit=${r.id}`} className="text-sm" style={{ color: "var(--accent)" }}>
                 Editar

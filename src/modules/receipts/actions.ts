@@ -115,6 +115,35 @@ export async function publishReceipt(formData: FormData) {
   revalidatePath("/empleado/recibos");
 }
 
+export async function deleteReceipt(formData: FormData) {
+  const s = await requireStaff();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const db = createAdminClient();
+  const { data: rec } = await db
+    .from("receipts")
+    .select("id, document_id")
+    .eq("id", id)
+    .eq("tenant_id", s.tenantId!)
+    .maybeSingle();
+  if (!rec) return;
+  const { data: versions } = await db.from("document_versions").select("file_id").eq("document_id", rec.document_id);
+  const { data: doc } = await db.from("documents").select("current_file_id").eq("id", rec.document_id).maybeSingle();
+  const fileIds = [...new Set([...(versions ?? []).map((v) => v.file_id), doc?.current_file_id].filter(Boolean))] as string[];
+  const { data: files } = fileIds.length
+    ? await db.from("files").select("id, storage_path").in("id", fileIds)
+    : { data: [] as { id: string; storage_path: string }[] };
+  await db.from("documents").update({ current_file_id: null }).eq("id", rec.document_id);
+  await db.from("receipts").delete().eq("id", rec.id).eq("tenant_id", s.tenantId!);
+  await db.from("documents").delete().eq("id", rec.document_id).eq("tenant_id", s.tenantId!);
+  if (files?.length) {
+    await db.storage.from("documents").remove(files.map((f) => f.storage_path));
+    await db.from("files").delete().in("id", files.map((f) => f.id));
+  }
+  revalidatePath("/rrhh/recibos");
+  revalidatePath("/empleado/recibos");
+}
+
 export async function getReceiptPdfUrl(receiptId: string) {
   const s = await requireEmployee();
   const me = await getMyEmployee(s);

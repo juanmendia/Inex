@@ -16,7 +16,7 @@ export function GenerateReceiptsForm({
   return (
     <form action={action} className="panel mb-6 grid gap-2 p-5 md:grid-cols-5">
       <p className="text-sm md:col-span-5" style={{ color: "var(--muted)" }}>
-        Se arma el PDF de liquidación (básico + novedades). En junio y diciembre también sale el aguinaldo (SAC) aparte.
+        Se arma el PDF tipo liquidación de haberes (básico, novedades, aportes 11%+3%+3%). En junio y diciembre también el SAC.
         Si el recibo todavía no está firmado, se regenera.
       </p>
       <select name="employee_id" className="field">

@@ -229,7 +229,7 @@ export async function deleteFacePhoto(formData: FormData) {
   const s = await requireStaff();
   const id = String(formData.get("id"));
   const db = createAdminClient();
-  await db.from("employees").update({ face_photo_path: null, face_photo_validated: false }).eq("id", id).eq("tenant_id", s.tenantId!);
+  await db.from("employees").update({ face_photo_path: null, face_photo_validated: false, face_descriptor: null }).eq("id", id).eq("tenant_id", s.tenantId!);
   revalidatePath(`/rrhh/empleados/${id}`);
   revalidatePath("/empleado");
 }

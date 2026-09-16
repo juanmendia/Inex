@@ -1,4 +1,4 @@
-/** Ensambla un PDF 1.4 A4 con Helvetica / Helvetica-Bold (WinAnsi). */
+/** Ensambla un PDF 1.4 A4 con Helvetica, Helvetica-Bold y Times-Italic (WinAnsi). */
 
 const WIN: Record<string, number> = {
   Á: 0xc1, É: 0xc9, Í: 0xcd, Ó: 0xd3, Ú: 0xda, Ñ: 0xd1, Ü: 0xdc,
@@ -26,10 +26,11 @@ export function assemblePdf(stream: string) {
   const objs = [
     "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n",
     "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n",
-    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >> endobj\n",
+    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> >> >> endobj\n",
     `4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream\nendobj\n`,
     "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> endobj\n",
     "6 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >> endobj\n",
+    "7 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Times-Italic /Encoding /WinAnsiEncoding >> endobj\n",
   ];
   let body = "%PDF-1.4\n";
   const offsets = [0];
@@ -38,9 +39,9 @@ export function assemblePdf(stream: string) {
     body += o;
   }
   const xref = Buffer.byteLength(body, "latin1");
-  body += `xref\n0 7\n0000000000 65535 f \n`;
-  for (let i = 1; i <= 6; i++) body += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
-  body += `trailer << /Size 7 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  body += `xref\n0 8\n0000000000 65535 f \n`;
+  for (let i = 1; i <= 7; i++) body += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  body += `trailer << /Size 8 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   const buf = Buffer.from(body, "latin1");
   if (!buf.toString("latin1").startsWith("%PDF")) throw new Error("PDF inválido");
   return buf;

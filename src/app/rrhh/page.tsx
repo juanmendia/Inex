@@ -39,10 +39,10 @@ export default async function RrhhHome() {
         ))}
       </div>
       <div className="mt-6 flex flex-wrap gap-2">
-        <Link className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white" href="/rrhh/empleados">
+        <Link className="btn btn-primary" href="/rrhh/empleados">
           + Empleado
         </Link>
-        <Link className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white" href="/rrhh/recibos">
+        <Link className="btn btn-primary" href="/rrhh/recibos">
           + Cargar recibo
         </Link>
         <Link className="rounded-lg border px-4 py-2 text-sm" href="/rrhh/eventos">

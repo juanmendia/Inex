@@ -18,7 +18,7 @@ export default async function PerfilEmpleado() {
           </p>
           <input name="email" type="email" defaultValue={me.email ?? ""} className="w-full rounded-lg border px-3 py-2 text-sm" />
           <input name="phone" defaultValue={me.phone ?? ""} placeholder="Teléfono" className="w-full rounded-lg border px-3 py-2 text-sm" />
-          <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white">Guardar</button>
+          <button className="rounded-lg bg-[#142236] px-4 py-2 text-sm text-white">Guardar</button>
         </form>
       )}
     </Shell>

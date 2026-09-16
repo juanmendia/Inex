@@ -11,7 +11,7 @@ export default async function ConfigPage() {
   const { data: settings } = await db.from("tenant_settings").select("*").eq("tenant_id", s.tenantId!).maybeSingle();
   const { data: locations } = await db
     .from("work_locations")
-    .select("id, name, latitude, longitude, radius_meters")
+    .select("id, name, latitude, longitude, radius_meters, day_start, day_end, afternoon_start, afternoon_end")
     .eq("tenant_id", s.tenantId!)
     .order("name");
 

@@ -31,7 +31,7 @@ export function OffboardForm({
       <input name="sac" type="number" step="0.01" min="0" placeholder="SAC proporcional" className="w-full rounded-lg border px-3 py-2 text-sm" />
       <input name="vacation" type="number" step="0.01" min="0" placeholder="Vacaciones no gozadas" className="w-full rounded-lg border px-3 py-2 text-sm" />
       <input name="severance" type="number" step="0.01" min="0" placeholder="Indemnización u otros" className="w-full rounded-lg border px-3 py-2 text-sm" />
-      {message ? <p className="text-sm text-[#1f5c56]">{message}</p> : null}
+      {message ? <p className="text-sm text-[#142236]">{message}</p> : null}
       <button disabled={pending} className="rounded-lg bg-red-800 px-4 py-2 text-sm text-white disabled:opacity-60">
         {pending ? "Procesando…" : "Confirmar baja"}
       </button>

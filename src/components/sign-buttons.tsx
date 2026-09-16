@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { signReceipt } from "@/modules/receipts/actions";
+import { DialogSheet, Overlay } from "@/components/overlay";
 
 export function SignButtons({ receiptId, pending }: { receiptId: string; pending: boolean }) {
   const [open, setOpen] = useState<null | "conform" | "non">(null);
@@ -14,7 +15,7 @@ export function SignButtons({ receiptId, pending }: { receiptId: string; pending
   return (
     <div className="flex flex-wrap gap-2">
       <button
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white"
+        className="rounded-lg bg-[#142236] px-4 py-2 text-sm text-white"
         onClick={() => setOpen("conform")}
       >
         Firmar en conformidad
@@ -26,8 +27,8 @@ export function SignButtons({ receiptId, pending }: { receiptId: string; pending
         Firmar NO en conformidad
       </button>
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6">
+        <Overlay onClose={() => setOpen(null)}>
+          <DialogSheet>
             {open === "conform" ? (
               <>
                 <p className="text-sm text-zinc-700">
@@ -37,7 +38,7 @@ export function SignButtons({ receiptId, pending }: { receiptId: string; pending
                 <div className="mt-4 flex justify-end gap-2">
                   <button onClick={() => setOpen(null)}>Cancelar</button>
                   <button
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-white"
+                    className="rounded-lg bg-[#142236] px-4 py-2 text-white"
                     disabled={busy}
                     onClick={() =>
                       start(async () => {
@@ -79,8 +80,8 @@ export function SignButtons({ receiptId, pending }: { receiptId: string; pending
                 </div>
               </>
             )}
-          </div>
-        </div>
+          </DialogSheet>
+        </Overlay>
       ) : null}
     </div>
   );

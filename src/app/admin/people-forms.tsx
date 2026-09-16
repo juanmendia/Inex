@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createTenant, grantTenantAccess, inviteSuperAdmin, deleteTenant, resetTempPassword } from "@/modules/tenants/actions";
+import { ConfirmForm } from "@/components/confirm-dialog";
 
 export function CreateTenantForm() {
   const [message, action, pending] = useActionState(createTenant, null);
@@ -76,18 +77,16 @@ export function ResetTempPasswordForm({ email }: { email: string }) {
 
 export function DeleteTenantButton({ id, name }: { id: string; name: string }) {
   return (
-    <form
+    <ConfirmForm
       action={deleteTenant}
-      onSubmit={(e) => {
-        if (!confirm(`¿Eliminar ${name}? Se borra la empresa, empleados, recibos y fichajes.`)) {
-          e.preventDefault();
-        }
-      }}
+      title={`¿Eliminar ${name}?`}
+      body="Se borra la empresa, empleados, recibos y fichajes."
+      confirm="Eliminar"
     >
       <input type="hidden" name="id" value={id} />
       <button type="submit" className="btn btn-ghost text-xs text-red-700">
         Eliminar
       </button>
-    </form>
+    </ConfirmForm>
   );
 }

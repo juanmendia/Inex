@@ -13,8 +13,7 @@ export function ManualAttendanceForm({
     <form action={action} className="panel mt-6 grid gap-3 p-5 md:grid-cols-4">
       <p className="text-sm font-medium md:col-span-4">Presente a mano</p>
       <p className="text-xs md:col-span-4" style={{ color: "var(--muted)" }}>
-        Plan B: el celular falló, se olvidó de fichar o no pudo llegar al GPS. Cargás entrada y, si ya se fue,
-        también la salida.
+        Plan B si llamó o se le rompió el celu: cargá solo entrada, solo salida, o las dos.
       </p>
       <select name="employee_id" required className="field md:col-span-2">
         <option value="">Empleado</option>
@@ -26,10 +25,10 @@ export function ManualAttendanceForm({
       </select>
       <label className="text-xs">
         Entrada
-        <input name="in_at" type="datetime-local" required className="field mt-1" />
+        <input name="in_at" type="datetime-local" className="field mt-1" />
       </label>
       <label className="text-xs">
-        Salida (opcional)
+        Salida
         <input name="out_at" type="datetime-local" className="field mt-1" />
       </label>
       {message ? (

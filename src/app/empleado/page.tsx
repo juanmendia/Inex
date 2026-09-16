@@ -3,6 +3,7 @@ import { Shell } from "@/components/shell";
 import { requireEmployee } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMyEmployee } from "@/lib/files";
+import { employeeHasFacePhoto } from "@/modules/attendance/actions";
 import Link from "next/link";
 
 function nextPunch(records: { punch_type: string | null; method: string | null }[] | null): "in" | "out" {
@@ -60,6 +61,7 @@ export default async function EmpleadoHome() {
     return d.getMonth() === month && d.getDate() === day;
   });
   const next = nextPunch(today ?? []);
+  const hasFace = me ? await employeeHasFacePhoto(me.id) : false;
 
   return (
     <Shell area="empleado" title="Inicio" session={s}>
@@ -73,7 +75,7 @@ export default async function EmpleadoHome() {
           </p>
           <p className="mt-1 text-lg font-semibold">{next === "in" ? "Registrá la entrada" : "Registrá la salida"}</p>
           <div className="mt-4">
-            <PunchPad next={next} hasFace={Boolean((me as { face_photo_path?: string | null } | null)?.face_photo_path)} />
+            <PunchPad next={next} hasFace={hasFace} />
           </div>
         </div>
       ) : null}

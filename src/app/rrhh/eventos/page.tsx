@@ -25,7 +25,7 @@ export default async function EventosPage() {
         </select>
         <input name="location" placeholder="Lugar" className="rounded-lg border px-3 py-2 text-sm" />
         <textarea name="description" placeholder="Descripción" className="rounded-lg border px-3 py-2 text-sm md:col-span-2" />
-        <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white md:col-span-2">Crear evento</button>
+        <button className="rounded-lg bg-[#142236] px-4 py-2 text-sm text-white md:col-span-2">Crear evento</button>
       </form>
       <ul className="divide-y rounded-xl bg-white ring-1 ring-zinc-200">
         {(events ?? []).map((e) => (

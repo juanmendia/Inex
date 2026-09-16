@@ -41,7 +41,7 @@ export default async function ConsultasEmpleado({
         </select>
         <input name="subject" required placeholder="Asunto" className="rounded-lg border px-3 py-2 text-sm" />
         <textarea name="body" required placeholder="Mensaje" className="sm:col-span-2 rounded-lg border px-3 py-2 text-sm" />
-        <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white sm:col-span-2">Nueva consulta</button>
+        <button className="rounded-lg bg-[#142236] px-4 py-2 text-sm text-white sm:col-span-2">Nueva consulta</button>
       </form>
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <ul className="divide-y rounded-xl bg-white ring-1 ring-zinc-200">
@@ -69,7 +69,7 @@ export default async function ConsultasEmpleado({
             <form action={addTicketMessage} className="mt-4 flex gap-2">
               <input type="hidden" name="ticket_id" value={current.id} />
               <input name="body" required className="flex-1 rounded-lg border px-3 py-2 text-sm" />
-              <button className="rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white">Enviar</button>
+              <button className="rounded-lg bg-[#142236] px-3 py-2 text-sm text-white">Enviar</button>
             </form>
           </div>
         ) : (

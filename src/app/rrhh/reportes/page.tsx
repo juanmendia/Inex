@@ -32,7 +32,7 @@ export default async function ReportesPage() {
       </div>
       <a
         href="/rrhh/reportes/csv"
-        className="mt-6 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white"
+        className="mt-6 inline-block rounded-lg bg-[#142236] px-4 py-2 text-sm text-white"
       >
         Descargar CSV de recibos
       </a>

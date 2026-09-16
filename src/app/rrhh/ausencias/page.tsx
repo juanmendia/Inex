@@ -132,7 +132,7 @@ export default async function AusenciasRrhh() {
                 {certs[r.id] ? (
                   <>
                     {" · "}
-                    <a className="text-indigo-600" href={certs[r.id]} target="_blank" rel="noreferrer">
+                    <a className="text-[#142236]" href={certs[r.id]} target="_blank" rel="noreferrer">
                       Certificado
                     </a>
                   </>

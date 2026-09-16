@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff } from "@/lib/auth/session";
-import { getMyEmployee, uploadPunchPhoto } from "@/lib/files";
+import { FACE_MATCH_MAX, faceDistance, parseDescriptor } from "@/lib/face-match";
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
@@ -21,25 +21,70 @@ function revalidateLocations() {
   revalidatePath("/rrhh/empleados");
 }
 
+/** Foto de referencia en la ficha, o la primera que ya quedó en un fichaje. */
+export async function employeeHasFacePhoto(employeeId: string) {
+  const db = createAdminClient();
+  const { data: emp } = await db.from("employees").select("face_photo_path").eq("id", employeeId).maybeSingle();
+  if (emp?.face_photo_path) return true;
+  const { data: rec } = await db
+    .from("attendance_records")
+    .select("photo_path")
+    .eq("employee_id", employeeId)
+    .not("photo_path", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (!rec?.photo_path) return false;
+  const up = await db
+    .from("employees")
+    .update({ face_photo_path: rec.photo_path, face_photo_validated: false })
+    .eq("id", employeeId);
+  if (up.error) await db.from("employees").update({ face_photo_path: rec.photo_path }).eq("id", employeeId);
+  return true;
+}
+
 export async function saveWorkLocation(_prev: string | null, formData: FormData): Promise<string | null> {
   const s = await requireStaff();
   const lat = Number(formData.get("latitude"));
   const lng = Number(formData.get("longitude"));
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "Latitud y longitud son obligatorias.";
   const id = String(formData.get("id") ?? "").trim();
+  const hm = (name: string) => {
+    const v = String(formData.get(name) ?? "").trim();
+    return v || null;
+  };
   const row = {
     name: String(formData.get("name") ?? "").trim() || "Sede",
     latitude: lat,
     longitude: lng,
     radius_meters: Number(formData.get("radius_meters") || 150),
+    day_start: hm("day_start"),
+    day_end: hm("day_end"),
+    afternoon_start: hm("afternoon_start"),
+    afternoon_end: hm("afternoon_end"),
   };
   const db = createAdminClient();
   if (id) {
     const { error } = await db.from("work_locations").update(row).eq("id", id).eq("tenant_id", s.tenantId!);
-    if (error) return error.message;
+    if (error) {
+      const { error: e2 } = await db
+        .from("work_locations")
+        .update({ name: row.name, latitude: row.latitude, longitude: row.longitude, radius_meters: row.radius_meters })
+        .eq("id", id)
+        .eq("tenant_id", s.tenantId!);
+      if (e2) return e2.message + " Corré 0018_sucursal_horario.sql.";
+    }
   } else {
     const { error } = await db.from("work_locations").insert({ ...row, tenant_id: s.tenantId });
-    if (error) return error.message;
+    if (error) {
+      const { error: e2 } = await db.from("work_locations").insert({
+        tenant_id: s.tenantId,
+        name: row.name,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        radius_meters: row.radius_meters,
+      });
+      if (e2) return e2.message;
+    }
   }
   revalidateLocations();
   return id ? "Sucursal actualizada." : "Sucursal agregada.";
@@ -63,8 +108,13 @@ export async function punch(formData: FormData): Promise<string | null> {
   const lng = Number(formData.get("longitude"));
   const deviceId = String(formData.get("device_id") ?? "").trim();
   const photo = formData.get("photo");
-  if (!(photo instanceof File) || photo.size < 80) {
-    return "Tenés que sacarte una foto al fichar. Así RRHH ve que sos vos.";
+  const newShot = photo instanceof File && photo.size >= 80 ? photo : null;
+  if (!newShot) return "Sacate una foto de la cara para fichar.";
+  const incoming = parseDescriptor(String(formData.get("face_descriptor") ?? ""));
+  if (!incoming) return "No se detectó una cara. Mirá a la cámara con buena luz y volvé a intentar.";
+  const stored = parseDescriptor((me as { face_descriptor?: unknown }).face_descriptor);
+  if (stored && faceDistance(stored, incoming) > FACE_MATCH_MAX) {
+    return "La cara no coincide con tu foto de referencia. Si cambiaste de look, pedile a RRHH que borre la foto y volvé a enrolarte.";
   }
   if (!deviceId) return "Este celular no se identificó. Recargá la página e intentá de nuevo.";
   const bound = (me as { punch_device_id?: string | null }).punch_device_id;
@@ -72,6 +122,38 @@ export async function punch(formData: FormData): Promise<string | null> {
     return "Este usuario ya está atado a otro celular. Pedile a RRHH que lo desvincule si cambiaste de teléfono.";
   }
   const db = createAdminClient();
+  const [{ data: otherPhone }, { data: otherPunch }, { data: otherFaces }] = await Promise.all([
+    db
+      .from("employees")
+      .select("id")
+      .eq("tenant_id", s.tenantId!)
+      .eq("punch_device_id", deviceId)
+      .neq("id", me.id)
+      .maybeSingle(),
+    db
+      .from("attendance_records")
+      .select("id")
+      .eq("tenant_id", s.tenantId!)
+      .eq("device_id", deviceId)
+      .neq("employee_id", me.id)
+      .limit(1)
+      .maybeSingle(),
+    db
+      .from("employees")
+      .select("face_descriptor")
+      .eq("tenant_id", s.tenantId!)
+      .neq("id", me.id)
+      .not("face_descriptor", "is", null),
+  ]);
+  if (otherPhone || otherPunch) {
+    return "Este celular ya está usado por otro empleado. Cada usuario tiene que fichar desde su propio teléfono.";
+  }
+  for (const row of otherFaces ?? []) {
+    const other = parseDescriptor(row.face_descriptor);
+    if (other && faceDistance(other, incoming) <= FACE_MATCH_MAX) {
+      return "Esta cara ya está registrada en otro usuario. No podés fichar con esa cuenta.";
+    }
+  }
 
   const [{ data: settings }, { data: locations }] = await Promise.all([
     db.from("tenant_settings").select("require_mobile_punch").eq("tenant_id", s.tenantId!).maybeSingle(),
@@ -125,9 +207,9 @@ export async function punch(formData: FormData): Promise<string | null> {
   if (wanted === "in" && lastIsIn) return "Ya registraste la entrada. Ahora fichá la salida.";
   if (wanted === "out" && !lastIsIn) return "Primero tenés que fichar la entrada.";
 
-  const shot = await uploadPunchPhoto({ tenantId: s.tenantId!, file: photo });
-  if ("error" in shot && shot.error) return shot.error;
-  const photoPath = "path" in shot ? shot.path : null;
+  const shot = newShot ? await uploadPunchPhoto({ tenantId: s.tenantId!, file: newShot }) : null;
+  if (shot && "error" in shot && shot.error) return shot.error;
+  const photoPath = shot && "path" in shot ? shot.path : null;
 
   const row = {
     tenant_id: s.tenantId,
@@ -163,10 +245,16 @@ export async function punch(formData: FormData): Promise<string | null> {
     await db.from("employees").update({ punch_device_id: deviceId }).eq("id", me.id);
   }
   const face = (me as { face_photo_path?: string | null }).face_photo_path;
+  const facePatch: Record<string, unknown> = {};
   if (!face && photoPath) {
-    const faceUp = await db.from("employees").update({ face_photo_path: photoPath, face_photo_validated: false }).eq("id", me.id);
-    if (faceUp.error) {
-      await db.from("employees").update({ face_photo_path: photoPath }).eq("id", me.id);
+    facePatch.face_photo_path = photoPath;
+    facePatch.face_photo_validated = false;
+  }
+  if (!stored) facePatch.face_descriptor = incoming;
+  if (Object.keys(facePatch).length) {
+    const faceUp = await db.from("employees").update(facePatch).eq("id", me.id);
+    if (faceUp.error && facePatch.face_photo_path) {
+      await db.from("employees").update({ face_photo_path: facePatch.face_photo_path }).eq("id", me.id);
     }
   }
   revalidatePath("/empleado");
@@ -181,15 +269,12 @@ export async function manualAttendance(_prev: string | null, formData: FormData)
   const inAt = String(formData.get("in_at") ?? "").trim();
   const outAt = String(formData.get("out_at") ?? "").trim();
   if (!employeeId) return "Elegí un empleado.";
-  if (!inAt) return "Indicá hora de entrada.";
-  const inDate = new Date(inAt);
-  if (Number.isNaN(inDate.getTime())) return "Hora de entrada inválida.";
-  let outDate: Date | null = null;
-  if (outAt) {
-    outDate = new Date(outAt);
-    if (Number.isNaN(outDate.getTime())) return "Hora de salida inválida.";
-    if (outDate <= inDate) return "La salida tiene que ser después de la entrada.";
-  }
+  if (!inAt && !outAt) return "Cargá entrada, salida, o las dos.";
+  const inDate = inAt ? new Date(inAt) : null;
+  const outDate = outAt ? new Date(outAt) : null;
+  if (inAt && (!inDate || Number.isNaN(inDate.getTime()))) return "Hora de entrada inválida.";
+  if (outAt && (!outDate || Number.isNaN(outDate.getTime()))) return "Hora de salida inválida.";
+  if (inDate && outDate && outDate <= inDate) return "La salida tiene que ser después de la entrada.";
   const db = createAdminClient();
   const { data: emp } = await db
     .from("employees")
@@ -207,39 +292,86 @@ export async function manualAttendance(_prev: string | null, formData: FormData)
     longitude: null,
     within_geofence: false,
   };
-  const insIn = await db.from("attendance_records").insert({
-    ...base,
-    punch_type: "in",
-    recorded_at: inDate.toISOString(),
-    server_recorded_at: new Date().toISOString(),
-  });
-  if (insIn.error) {
-    const fb = await db.from("attendance_records").insert({
-      tenant_id: s.tenantId,
-      employee_id: employeeId,
-      method: "hr_manual:in",
-      recorded_at: inDate.toISOString(),
-      server_recorded_at: new Date().toISOString(),
-    });
-    if (fb.error) return fb.error.message;
-  }
-  if (outDate) {
-    const insOut = await db.from("attendance_records").insert({
+  async function put(kind: "in" | "out", at: Date) {
+    const ins = await db.from("attendance_records").insert({
       ...base,
-      punch_type: "out",
-      recorded_at: outDate.toISOString(),
+      punch_type: kind,
+      recorded_at: at.toISOString(),
       server_recorded_at: new Date().toISOString(),
     });
-    if (insOut.error) {
-      await db.from("attendance_records").insert({
+    if (ins.error) {
+      const fb = await db.from("attendance_records").insert({
         tenant_id: s.tenantId,
         employee_id: employeeId,
-        method: "hr_manual:out",
-        recorded_at: outDate.toISOString(),
+        method: kind === "in" ? "hr_manual:in" : "hr_manual:out",
+        recorded_at: at.toISOString(),
         server_recorded_at: new Date().toISOString(),
       });
+      if (fb.error) throw new Error(fb.error.message);
     }
   }
+  try {
+    if (inDate) await put("in", inDate);
+    if (outDate) await put("out", outDate);
+  } catch (e) {
+    return e instanceof Error ? e.message : "No se pudo cargar.";
+  }
   revalidatePath("/rrhh/asistencia");
-  return outDate ? "Presente cargado: entrada y salida." : "Entrada cargada. Podés cargar la salida después.";
+  if (inDate && outDate) return "Entrada y salida cargadas.";
+  if (inDate) return "Entrada cargada. La salida la podés cargar después.";
+  return "Salida cargada.";
+}
+
+export async function deleteAttendancePunch(formData: FormData) {
+  const s = await requireStaff();
+  const ids = [
+    String(formData.get("id") ?? ""),
+    ...String(formData.get("ids") ?? "").split(","),
+  ].map((x) => x.trim()).filter(Boolean);
+  if (!ids.length) return;
+  const db = createAdminClient();
+  const { data: rows } = await db
+    .from("attendance_records")
+    .select("id, photo_path")
+    .eq("tenant_id", s.tenantId!)
+    .in("id", ids);
+  for (const data of rows ?? []) {
+    if (data.photo_path) {
+      const { data: face } = await db.from("employees").select("id").eq("face_photo_path", data.photo_path).maybeSingle();
+      if (!face) await db.storage.from("documents").remove([data.photo_path]);
+    }
+  }
+  await db.from("attendance_records").delete().eq("tenant_id", s.tenantId!).in("id", ids);
+  revalidatePath("/rrhh/asistencia");
+  revalidatePath("/empleado");
+  revalidatePath("/empleado/fichaje");
+}
+
+/** Borra fotos de fichaje de más de 7 días. No toca la foto de referencia de la ficha. */
+export async function purgeOldPunchPhotos() {
+  const db = createAdminClient();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+  const { data: faces } = await db.from("employees").select("face_photo_path");
+  const keep = new Set((faces ?? []).map((f) => f.face_photo_path).filter(Boolean) as string[]);
+  let removed = 0;
+  for (;;) {
+    const { data: rows } = await db
+      .from("attendance_records")
+      .select("id, photo_path")
+      .not("photo_path", "is", null)
+      .lt("recorded_at", cutoff.toISOString())
+      .limit(80);
+    if (!rows?.length) break;
+    const batch = rows.filter((r) => r.photo_path && !keep.has(r.photo_path));
+    if (!batch.length) break;
+    const paths = [...new Set(batch.map((r) => r.photo_path as string))];
+    await db.storage.from("documents").remove(paths);
+    await db.from("attendance_records").update({ photo_path: null }).in(
+      "id",
+      batch.map((r) => r.id),
+    );
+    removed += batch.length;
+  }
+  return removed;
 }

@@ -15,7 +15,7 @@ export default function ClaveObligatoriaPage() {
           <input name="password" type="password" required placeholder="Nueva contraseña (mín. 8)" className="w-full rounded-xl border border-[#e4d9c7] px-3 py-2.5" />
           <input name="confirm" type="password" required placeholder="Repetí la contraseña" className="w-full rounded-xl border border-[#e4d9c7] px-3 py-2.5" />
           {error ? <p className="text-sm text-red-700">{error}</p> : null}
-          <button disabled={pending} className="w-full rounded-xl bg-[#1f5c56] py-3 text-sm text-[#f7f1e4]">
+          <button disabled={pending} className="w-full rounded-xl bg-[#142236] py-3 text-sm text-white">
             Guardar e ingresar
           </button>
         </form>

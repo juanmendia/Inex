@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Trash2 } from "lucide-react";
 import { RECEIPT_STATUS } from "@/lib/labels";
 import { ReceiptViewer } from "@/components/receipt-viewer";
+import { ConfirmForm } from "@/components/confirm-dialog";
+import { deleteReceipt } from "@/modules/receipts/actions";
 
 export type ReceiptChip = {
   id: string;
@@ -28,20 +30,35 @@ export function ReceiptPaperButton({
   const title = r.kind === "aguinaldo" ? `SAC ${period}` : `Haberes ${period}`;
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-zinc-100"
-        title={RECEIPT_STATUS[r.status] ?? r.status}
-      >
-        <span className="flex h-9 w-8 items-center justify-center rounded-sm bg-white shadow-sm ring-1 ring-zinc-300">
-          <FileText size={16} className="text-zinc-600" />
-        </span>
-        <span>
-          <span className="block font-medium leading-tight">{title}</span>
-          <span className="block text-xs opacity-60">{RECEIPT_STATUS[r.status] ?? r.status}</span>
-        </span>
-      </button>
+      <span className="inline-flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-zinc-100"
+          title={RECEIPT_STATUS[r.status] ?? r.status}
+        >
+          <span className="flex h-9 w-8 items-center justify-center rounded-sm bg-white shadow-sm ring-1 ring-zinc-300">
+            <FileText size={16} className="text-zinc-600" />
+          </span>
+          <span>
+            <span className="block font-medium leading-tight">{title}</span>
+            <span className="block text-xs opacity-60">{RECEIPT_STATUS[r.status] ?? r.status}</span>
+          </span>
+        </button>
+        {hr ? (
+          <ConfirmForm
+            action={deleteReceipt}
+            title={`¿Eliminar recibo ${title}?`}
+            body="Sale del portal del empleado. Después podés generarlo de nuevo o subir otro PDF."
+            confirm="Eliminar"
+          >
+            <input type="hidden" name="id" value={r.id} />
+            <button type="submit" className="rounded p-1 text-red-700 opacity-60 hover:opacity-100" title="Eliminar recibo">
+              <Trash2 size={14} />
+            </button>
+          </ConfirmForm>
+        ) : null}
+      </span>
       {open ? (
         <ReceiptViewer
           receiptId={r.id}

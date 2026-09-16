@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { logout } from "@/modules/auth/actions";
 import { enterTenant } from "@/modules/tenants/actions";
@@ -38,12 +38,6 @@ const NAV = {
   admin: [["Empresas", "/admin"]],
 } as const;
 
-const META = {
-  admin: { kicker: "Consola plataforma", brand: "INEX" },
-  rrhh: { kicker: "Recursos humanos", brand: "INEX RRHH" },
-  empleado: { kicker: "Mi espacio", brand: "INEX" },
-};
-
 export async function Shell({
   area,
   title,
@@ -72,13 +66,8 @@ export async function Shell({
           .limit(12)
       ).data
     : notesQ.data;
-  const { data: settings } = session.tenantId
-    ? await db.from("tenant_settings").select("primary_color").eq("tenant_id", session.tenantId).maybeSingle()
-    : { data: null };
 
   const theme = area === "admin" ? "shell-admin" : area === "rrhh" ? "shell-rrhh" : "shell-empleado";
-  const accent = area === "rrhh" && settings?.primary_color ? settings.primary_color : undefined;
-  const meta = META[area];
   const company =
     area === "admin"
       ? "Inex"
@@ -88,14 +77,17 @@ export async function Shell({
   const program = area === "admin" ? "Plataforma" : area === "rrhh" ? "Inex RRHH" : "Inex";
 
   return (
-    <div className={`flex min-h-screen overflow-x-hidden ${theme}`} style={accent ? ({ ["--accent"]: accent } as CSSProperties) : undefined}>
+    <div className={`flex min-h-screen overflow-x-hidden ${theme}`}>
       <aside
         className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto md:flex"
         style={{ background: "var(--aside)", color: "#f4efe4" }}
       >
         <div className="px-6 py-7">
+          <div className="mb-5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo1.png" alt="Inex" className="h-12 w-auto max-w-full object-contain" />
+          </div>
           <p className="text-[15px] font-medium leading-snug">{company}</p>
-          <p className="mt-1 text-[11px] tracking-wide text-white/50">{program}</p>
           {area === "rrhh" && session.memberships.length > 1 ? (
             <form action={enterTenant} className="mt-3 space-y-1">
               <select name="tenant_id" defaultValue={session.tenantId ?? ""} className="w-full rounded-md bg-white/10 px-2 py-1 text-xs">
@@ -128,7 +120,9 @@ export async function Shell({
           style={{ background: "var(--header)", borderBottom: "1px solid var(--line)" }}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <MobileNav items={NAV[area]} company={company} program={program} />
+            <MobileNav items={NAV[area]} company={company} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="" className="h-6 w-auto max-w-[5.5rem] object-contain opacity-70 md:hidden" />
             <div className="min-w-0">
               <p className="hidden text-[11px] tracking-widest uppercase md:block" style={{ color: "var(--muted)" }}>
                 {company} · {program}

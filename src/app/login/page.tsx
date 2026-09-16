@@ -5,34 +5,34 @@ export default function LoginPage() {
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <section className="relative hidden overflow-hidden bg-[#0b0f14] p-12 text-[#eee8d8] lg:flex lg:flex-col lg:justify-between">
-        <p className="text-[11px] tracking-[0.35em] uppercase text-[#c9a227]">{name}</p>
+      <section className="relative hidden overflow-hidden bg-[#081525] p-12 text-white lg:flex lg:flex-col lg:justify-end">
         <div>
           <h1 className="max-w-md text-4xl font-semibold leading-tight tracking-tight">
-            Recursos humanos con la seriedad de un producto de empresa.
+            Fichaje, recibos y tu equipo. En un solo lugar.
           </h1>
-          <p className="mt-4 max-w-sm text-sm text-white/55">
-            Tres espacios: plataforma, RRHH y portal del empleado. Cada uno, una identidad.
+          <p className="mt-4 max-w-sm text-sm text-white/60">
+            El empleado ficha con el celular. RRHH ve asistencia, liquida y publica el recibo. Sin planillas sueltas.
           </p>
         </div>
-        <p className="text-xs text-white/35">Acceso restringido · datos aislados por empresa</p>
+        <p className="mt-16 text-xs text-white/35">Acceso restringido · datos aislados por empresa</p>
       </section>
-      <section className="flex items-center justify-center bg-[#f3efe6] p-8">
-        <div className="w-full max-w-md rounded-2xl border border-[#e4d9c7] bg-[#fffcf7] p-8 shadow-[0_24px_80px_rgba(28,25,20,0.08)]">
-          <p className="text-[11px] tracking-[0.28em] text-[#1f5c56] uppercase">{name}</p>
-          <h2 className="mt-2 text-2xl font-semibold text-[#1c1914]">Iniciar sesión</h2>
-          <p className="mt-1 text-sm text-[#6f675c]">Portal de Recursos Humanos</p>
+      <section className="flex items-center justify-center bg-[#e8edf3] p-8">
+        <div className="w-full max-w-md rounded-2xl border border-[#d5dee8] bg-white p-8 shadow-[0_24px_80px_rgba(8,21,37,0.08)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt={name} className="mx-auto mb-8 h-16 w-auto max-w-[240px] object-contain" />
+          <h2 className="text-center text-2xl font-semibold text-[#081525]">Iniciar sesión</h2>
+          <p className="mt-1 text-center text-sm text-[#5b6b80]">Portal de Recursos Humanos</p>
           <LoginForm />
-          <p className="mt-6 text-center text-sm space-y-2">
-            <a href="/activar" className="block text-[#1f5c56] underline-offset-4 hover:underline">
+          <p className="mt-6 space-y-2 text-center text-sm">
+            <a href="/activar" className="block text-[#142236] underline-offset-4 hover:underline">
               Empleado: primera vez (DNI)
             </a>
-            <a href="/login/recuperar" className="block text-[#1f5c56] underline-offset-4 hover:underline">
+            <a href="/login/recuperar" className="block text-[#142236] underline-offset-4 hover:underline">
               Me invitaron a una empresa / olvidé la contraseña
             </a>
           </p>
-          <div className="mt-8 space-y-1 border-t border-[#e4d9c7] pt-4 text-xs text-[#6f675c]">
-            <p className="font-medium text-[#1c1914]">Cuentas de demostración · clave InexDemo123!</p>
+          <div className="mt-8 space-y-1 border-t border-[#d5dee8] pt-4 text-xs text-[#5b6b80]">
+            <p className="font-medium text-[#081525]">Cuentas de demostración · clave InexDemo123!</p>
             <p>super@inex.demo — solo alta de empresas</p>
             <p>hr@inex.demo — RRHH de la empresa demo</p>
             <p>empleado@inex.demo — portal de la persona</p>

@@ -43,7 +43,7 @@ export default async function DocumentosRrhh({
           ))}
         </select>
         <input name="file" type="file" accept="application/pdf" required className="text-sm" />
-        <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white md:col-span-4">Publicar</button>
+        <button className="rounded-lg bg-[#142236] px-4 py-2 text-sm text-white md:col-span-4">Publicar</button>
       </form>
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <ul className="divide-y rounded-xl bg-white ring-1 ring-zinc-200">

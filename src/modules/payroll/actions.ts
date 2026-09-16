@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth/session";
 import { audit } from "@/lib/files";
 
-import { hourValue, overtimeAmount, overtimeLabel } from "@/lib/labels";
+import { hourValue, overtimeAmount } from "@/lib/labels";
+import { overtimeConcept } from "@/lib/payroll-concepts";
 import { overtimeFromPunches } from "@/lib/overtime-from-punches";
 import { generatePeriodReceipts } from "@/lib/generate-receipts";
 
@@ -41,7 +42,8 @@ export async function addNovelty(formData: FormData) {
     const vh = hourValue(Number(emp?.base_salary ?? 0), monthly);
     if (vh <= 0) throw new Error("Definí el sueldo básico del empleado para calcular el valor hora.");
     const amount = overtimeAmount({ hourValue: vh, hours, ratePercent });
-    const concept = overtimeLabel(ratePercent);
+    const oc = overtimeConcept(ratePercent);
+    const concept = `${oc.code} ${oc.name}`;
     const note = `${hours} h × valor hora ${vh} × ${ratePercent}%`;
     const { error } = await db.from("payroll_novelties").insert({
       tenant_id: s.tenantId,
@@ -97,7 +99,7 @@ export async function loadOvertimeFromAttendance(formData: FormData) {
   const to = new Date(year, month, 1).toISOString();
   let empQ = db
     .from("employees")
-    .select("id, agreement_id, base_salary")
+    .select("id, agreement_id, base_salary, work_location_id")
     .eq("tenant_id", s.tenantId!)
     .eq("status", "active");
   if (only) empQ = empQ.eq("id", only);
@@ -109,6 +111,21 @@ export async function loadOvertimeFromAttendance(formData: FormData) {
     )
     .eq("tenant_id", s.tenantId!);
   const agMap = new Map((agreements ?? []).map((a) => [a.id, a]));
+  const { data: locations } = await db
+    .from("work_locations")
+    .select("id, day_start, day_end, afternoon_start, afternoon_end")
+    .eq("tenant_id", s.tenantId!);
+  const locationHours = Object.fromEntries(
+    (locations ?? []).map((l) => [
+      l.id,
+      {
+        dayStart: l.day_start,
+        dayEnd: l.day_end,
+        afternoonStart: l.afternoon_start,
+        afternoonEnd: l.afternoon_end,
+      },
+    ]),
+  );
   let del = db
     .from("payroll_novelties")
     .delete()
@@ -123,13 +140,18 @@ export async function loadOvertimeFromAttendance(formData: FormData) {
   for (const emp of employees ?? []) {
     const { data: punches } = await db
       .from("attendance_records")
-      .select("recorded_at, punch_type, method")
+      .select("recorded_at, punch_type, method, work_location_id")
       .eq("employee_id", emp.id)
       .gte("recorded_at", from)
       .lt("recorded_at", to)
       .order("recorded_at");
     const ag = emp.agreement_id ? agMap.get(emp.agreement_id) : undefined;
-    const buckets = overtimeFromPunches(punches ?? [], {
+    const assigned = (emp as { work_location_id?: string | null }).work_location_id;
+    const punchesWithLoc = (punches ?? []).map((p) => ({
+      ...p,
+      work_location_id: (p as { work_location_id?: string | null }).work_location_id || assigned,
+    }));
+    const buckets = overtimeFromPunches(punchesWithLoc, {
       dayStart: (ag as { day_start?: string } | undefined)?.day_start,
       dayEnd: (ag as { day_end?: string } | undefined)?.day_end,
       afternoonStart: (ag as { afternoon_start?: string } | undefined)?.afternoon_start,
@@ -139,18 +161,20 @@ export async function loadOvertimeFromAttendance(formData: FormData) {
       rateSunday: (ag as { rate_sunday?: number } | undefined)?.rate_sunday,
       rateHoliday: (ag as { rate_holiday?: number } | undefined)?.rate_holiday,
       rateNight: (ag as { rate_night?: number } | undefined)?.rate_night,
+      locationHours,
     });
     const monthly = Number(ag?.monthly_hours ?? 176);
     const vh = hourValue(Number(emp.base_salary ?? 0), monthly);
     for (const { hours, rate } of buckets) {
       if (hours <= 0 || vh <= 0) continue;
       const amount = overtimeAmount({ hourValue: vh, hours, ratePercent: rate });
+      const oc = overtimeConcept(rate);
       await db.from("payroll_novelties").insert({
         tenant_id: s.tenantId,
         employee_id: emp.id,
         period_year: year,
         period_month: month,
-        concept: overtimeLabel(rate),
+        concept: `${oc.code} ${oc.name}`,
         amount,
         hours,
         rate_percent: rate,

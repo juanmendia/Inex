@@ -5,5 +5,6 @@
   "display": "standalone",
   "background_color": "#f4f4f5",
   "theme_color": "#4f46e5",
-  "lang": "es"
+  "lang": "es",
+  "icons": [{ "src": "/logo.png", "type": "image/png", "sizes": "any" }]
 }

@@ -26,14 +26,14 @@ export function Bell({
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-80 rounded-xl bg-white p-2 shadow-lg ring-1 ring-zinc-200">
         <form action={markAllNotificationsRead} className="mb-2 text-right">
-          <button className="text-xs text-indigo-600">Marcar todas leídas</button>
+          <button className="text-xs text-[#142236]">Marcar todas leídas</button>
         </form>
         <ul className="max-h-80 space-y-1 overflow-y-auto">
           {items.length === 0 ? (
             <li className="px-2 py-3 text-sm text-zinc-500">No hay avisos.</li>
           ) : (
             items.map((n) => (
-              <li key={n.id} className={`rounded-lg px-2 py-2 text-sm ${n.read_at ? "text-zinc-500" : "bg-indigo-50"}`}>
+              <li key={n.id} className={`rounded-lg px-2 py-2 text-sm ${n.read_at ? "text-zinc-500" : "bg-blue-50"}`}>
                 {n.href ? (
                   <a href={n.href} className="block font-medium text-zinc-900">
                     {n.title}
@@ -45,7 +45,7 @@ export function Bell({
                 {!n.read_at ? (
                   <form action={markNotificationRead}>
                     <input type="hidden" name="id" value={n.id} />
-                    <button className="text-xs text-indigo-600">Marcar leída</button>
+                    <button className="text-xs text-[#142236]">Marcar leída</button>
                   </form>
                 ) : null}
               </li>

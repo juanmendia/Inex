@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { createEmployee, resetEmployeePassword } from "@/modules/employees/actions";
+import { DialogSheet, Overlay } from "@/components/overlay";
 
 type Branch = { id: string; name: string };
 type Agreement = { id: string; name: string };
@@ -24,7 +25,7 @@ function AccessCard({
   onClose?: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-[#1f5c56]/30 bg-[#eef6f4] p-4 text-sm">
+    <div className="rounded-xl border border-[#142236]/30 bg-[#e8f0ff] p-4 text-sm">
       <p className="font-medium">Usuario y clave temporal</p>
       <p className="mt-3">
         Usuario (DNI): <span className="select-all font-mono text-base">{dni}</span>
@@ -144,17 +145,16 @@ export function ResetEmployeeKey({ id }: { id: string }) {
       </form>
       {fail ? <p className="text-[11px] text-red-700">{fail}</p> : null}
       {access && open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button type="button" className="absolute inset-0 bg-[#122033]/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <div className="relative z-10 w-full max-w-md">
+        <Overlay onClose={() => setOpen(false)}>
+          <DialogSheet>
             <AccessCard
               dni={access.dni}
               pass={access.pass}
               mailed={access.mailed}
               onClose={() => setOpen(false)}
             />
-          </div>
-        </div>
+          </DialogSheet>
+        </Overlay>
       ) : null}
     </div>
   );

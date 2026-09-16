@@ -71,7 +71,7 @@ export default async function FichaEmpleado({
 
   return (
     <Shell area="rrhh" title={`${emp.last_name}, ${emp.first_name}`} session={s}>
-      <Link href="/rrhh/empleados" className="text-sm text-indigo-600">
+      <Link href="/rrhh/empleados" className="text-sm text-[#142236]">
         ← Empleados
       </Link>
       <div className="mt-4 flex gap-2">
@@ -79,7 +79,7 @@ export default async function FichaEmpleado({
           <Link
             key={key}
             href={`/rrhh/empleados/${id}?tab=${key}`}
-            className={`rounded-full px-3 py-1 text-sm ${tab === key ? "bg-indigo-600 text-white" : "bg-zinc-100"}`}
+            className={`rounded-full px-3 py-1 text-sm ${tab === key ? "bg-[#142236] text-white" : "bg-zinc-100"}`}
           >
             {label}
           </Link>
@@ -146,16 +146,16 @@ export default async function FichaEmpleado({
       {tab === "laboral" ? (
         <div className="panel mt-3 p-5 text-sm">
           <p className="text-xs tracking-widest uppercase" style={{ color: "var(--muted)" }}>
-            Foto de referencia (primera vez)
+            Foto de referencia (reconocimiento)
           </p>
           {faceUrl ? (
             <div className="mt-3 flex flex-wrap items-start gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={faceUrl} alt="Foto de referencia" className="h-28 w-28 rounded-xl object-cover" />
               <div>
-                <p className="font-medium">{faceOk ? "Validada por RRHH" : "Primera foto — pendiente de validar"}</p>
+                <p className="font-medium">{faceOk ? "Validada por RRHH" : "Pendiente de validar"}</p>
                 <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
-                  Es la cara que sacó la primera vez que fichó. Si no es la persona, borrala: la próxima vez tiene que volver a sacarse la foto.
+                  Cada fichaje compara la cara nueva con esta (modelo gratuito en el celular). Si no es la persona, borrala y tiene que enrolarse de nuevo.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {!faceOk ? (

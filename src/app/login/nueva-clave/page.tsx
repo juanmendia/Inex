@@ -96,7 +96,7 @@ export default function NuevaClavePage() {
               className="w-full rounded-xl border border-[#e4d9c7] px-3 py-2.5"
             />
             {error ? <p className="text-sm text-red-700">{error}</p> : null}
-            <button disabled={pending} className="w-full rounded-xl bg-[#1f5c56] py-3 text-sm text-[#f7f1e4]">
+            <button disabled={pending} className="w-full rounded-xl bg-[#142236] py-3 text-sm text-white">
               Guardar
             </button>
           </form>
@@ -105,7 +105,7 @@ export default function NuevaClavePage() {
             <p className="mt-6 text-sm text-[#6f675c]">Validando el enlace…</p>
             {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
             <p className="mt-4 text-center text-sm">
-              <a href="/login/recuperar" className="text-[#1f5c56]">
+              <a href="/login/recuperar" className="text-[#142236]">
                 Pedir un enlace nuevo
               </a>
             </p>
