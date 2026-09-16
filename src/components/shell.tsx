@@ -1,42 +1,12 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { logout } from "@/modules/auth/actions";
 import { enterTenant } from "@/modules/tenants/actions";
 import type { SessionContext } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Bell } from "@/components/bell";
 import { MobileNav } from "@/components/mobile-nav";
-
-const NAV = {
-  empleado: [
-    ["Inicio", "/empleado"],
-    ["Recibos", "/empleado/recibos"],
-    ["Documentos", "/empleado/documentos"],
-    ["Consultas", "/empleado/consultas"],
-    ["Calendario", "/empleado/calendario"],
-    ["Vacaciones", "/empleado/vacaciones"],
-    ["Fichaje", "/empleado/fichaje"],
-    ["Comunicaciones", "/empleado/comunicaciones"],
-    ["Perfil", "/empleado/perfil"],
-  ],
-  rrhh: [
-    ["Inicio", "/rrhh"],
-    ["Empleados", "/rrhh/empleados"],
-    ["Convenios", "/rrhh/convenios"],
-    ["Recibos", "/rrhh/recibos"],
-    ["Documentos", "/rrhh/documentos"],
-    ["Consultas", "/rrhh/consultas"],
-    ["Asistencia", "/rrhh/asistencia"],
-    ["Ausencias", "/rrhh/ausencias"],
-    ["Liquidación", "/rrhh/liquidacion"],
-    ["Eventos", "/rrhh/eventos"],
-    ["Comunicaciones", "/rrhh/comunicaciones"],
-    ["Actividad", "/rrhh/actividad"],
-    ["Reportes", "/rrhh/reportes"],
-    ["Configuración", "/rrhh/configuracion"],
-  ],
-  admin: [["Empresas", "/admin"]],
-} as const;
+import { AsideNav } from "@/components/aside-nav";
+import type { NavArea } from "@/components/nav";
 
 export async function Shell({
   area,
@@ -44,7 +14,7 @@ export async function Shell({
   session,
   children,
 }: {
-  area: keyof typeof NAV;
+  area: NavArea;
   title: string;
   session: SessionContext;
   children: ReactNode;
@@ -101,17 +71,7 @@ export async function Shell({
             </form>
           ) : null}
         </div>
-        <nav className="flex-1 space-y-0.5 px-3">
-          {NAV[area].map(([label, href]) => (
-            <Link
-              key={href}
-              href={href}
-              className="aside-link block rounded-lg px-3 py-2 text-[13px] tracking-wide text-white/80"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+        <AsideNav area={area} />
         <p className="px-5 py-4 text-[10px] leading-snug text-white/35">Solo tu rol</p>
       </aside>
       <div className="flex min-h-screen min-w-0 flex-1 flex-col" style={{ background: "var(--bg)" }}>
@@ -120,7 +80,7 @@ export async function Shell({
           style={{ background: "var(--header)", borderBottom: "1px solid var(--line)" }}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <MobileNav items={NAV[area]} company={area === "admin" ? "" : company} />
+            <MobileNav area={area} company={area === "admin" ? "" : company} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="" className="h-6 w-auto max-w-[5.5rem] object-contain opacity-70 md:hidden" />
             <div className="min-w-0">

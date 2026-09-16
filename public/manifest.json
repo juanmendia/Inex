@@ -7,7 +7,7 @@
   "theme_color": "#142236",
   "lang": "es",
   "icons": [
+    { "src": "/favicon.png", "type": "image/png", "sizes": "512x512" },
     { "src": "/icon.png", "type": "image/png", "sizes": "512x512" },
-    { "src": "/favicon.ico", "sizes": "48x48" }
   ]
 }

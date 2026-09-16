@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { logout } from "@/modules/auth/actions";
+import { AsideNav } from "@/components/aside-nav";
+import type { NavArea } from "@/components/nav";
 
 export function MobileNav({
-  items,
+  area,
   company,
 }: {
-  items: readonly (readonly [string, string])[];
+  area: NavArea;
   company: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -30,7 +31,7 @@ export function MobileNav({
       {open ? (
         <div className="fixed inset-0 z-50">
           <button type="button" className="absolute inset-0 bg-[#122033]/45 backdrop-blur-md" aria-label="Cerrar" onClick={() => setOpen(false)} />
-          <nav
+          <div
             className="absolute inset-y-0 left-0 flex w-[min(84vw,20rem)] flex-col text-[#f4efe4] shadow-xl"
             style={{ background: "var(--aside)" }}
           >
@@ -46,22 +47,11 @@ export function MobileNav({
                 Cerrar
               </button>
             </div>
-            <div className="flex-1 space-y-0.5 overflow-y-auto px-3">
-              {items.map(([label, href]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="block rounded-lg px-3 py-3 text-[15px] text-white/90"
-                  onClick={() => setOpen(false)}
-                >
-                  {label}
-                </Link>
-              ))}
-            </div>
+            <AsideNav area={area} onNavigate={() => setOpen(false)} />
             <form action={logout} className="border-t border-white/10 p-4">
               <button className="text-sm text-white/80">Salir</button>
             </form>
-          </nav>
+          </div>
         </div>
       ) : null}
     </div>
