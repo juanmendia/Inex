@@ -94,7 +94,7 @@ export default async function AsistenciaRrhh({
       out: r.punch_type === "out" || String(r.method ?? "").endsWith(":out"),
       branch: named(r.work_locations),
       photo: photos.get(r.id) ?? null,
-      meters: r.distance_meters ?? null,
+      meters: (r as { distance_meters?: number | null }).distance_meters ?? null,
     };
   });
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff } from "@/lib/auth/session";
 import { FACE_MATCH_MAX, faceDistance, parseDescriptor } from "@/lib/face-match";
+import { getMyEmployee, uploadPunchPhoto } from "@/lib/files";
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
