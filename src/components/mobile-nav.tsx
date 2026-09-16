@@ -40,7 +40,7 @@ export function MobileNav({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/logo1.png" alt="" className="h-9 w-auto max-w-[10rem] object-contain" />
                 </div>
-                <p className="text-[15px] font-medium leading-snug">{company}</p>
+                {company ? <p className="text-[15px] font-medium leading-snug">{company}</p> : null}
               </div>
               <button type="button" className="text-sm text-white/70" onClick={() => setOpen(false)}>
                 Cerrar

@@ -87,7 +87,7 @@ export async function Shell({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo1.png" alt="Inex" className="h-12 w-auto max-w-full object-contain" />
           </div>
-          <p className="text-[15px] font-medium leading-snug">{company}</p>
+          {area !== "admin" ? <p className="text-[15px] font-medium leading-snug">{company}</p> : null}
           {area === "rrhh" && session.memberships.length > 1 ? (
             <form action={enterTenant} className="mt-3 space-y-1">
               <select name="tenant_id" defaultValue={session.tenantId ?? ""} className="w-full rounded-md bg-white/10 px-2 py-1 text-xs">
@@ -120,7 +120,7 @@ export async function Shell({
           style={{ background: "var(--header)", borderBottom: "1px solid var(--line)" }}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <MobileNav items={NAV[area]} company={company} />
+            <MobileNav items={NAV[area]} company={area === "admin" ? "" : company} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="" className="h-6 w-auto max-w-[5.5rem] object-contain opacity-70 md:hidden" />
             <div className="min-w-0">

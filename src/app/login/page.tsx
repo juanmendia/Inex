@@ -31,12 +31,6 @@ export default function LoginPage() {
               Me invitaron a una empresa / olvidé la contraseña
             </a>
           </p>
-          <div className="mt-8 space-y-1 border-t border-[#d5dee8] pt-4 text-xs text-[#5b6b80]">
-            <p className="font-medium text-[#081525]">Cuentas de demostración · clave InexDemo123!</p>
-            <p>super@inex.demo — solo alta de empresas</p>
-            <p>hr@inex.demo — RRHH de la empresa demo</p>
-            <p>empleado@inex.demo — portal de la persona</p>
-          </div>
         </div>
       </section>
     </main>
