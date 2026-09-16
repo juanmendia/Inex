@@ -4,7 +4,10 @@
   "start_url": "/login",
   "display": "standalone",
   "background_color": "#f4f4f5",
-  "theme_color": "#4f46e5",
+  "theme_color": "#142236",
   "lang": "es",
-  "icons": [{ "src": "/logo.png", "type": "image/png", "sizes": "any" }]
+  "icons": [
+    { "src": "/icon.png", "type": "image/png", "sizes": "512x512" },
+    { "src": "/favicon.ico", "sizes": "48x48" }
+  ]
 }
