@@ -26,6 +26,7 @@ type Emp = {
   departments: unknown;
   positions: unknown;
   work_location_id: string | null;
+  agreement_id?: string | null;
   work_locations?: unknown;
 };
 
@@ -33,9 +34,19 @@ function linesFor(kind: string, emp: Emp, extras: { concept: string; amount: num
   return buildPayslipLines({ kind, base: Number(emp.base_salary ?? 0), month, extras });
 }
 
+type CompanySlip = {
+  legal_name?: string | null;
+  cuit?: string | null;
+  recibo_sucursal?: string | null;
+  recibo_categoria?: string | null;
+};
+
 function toPayslip(opts: {
   company: string;
   cuit?: string | null;
+  defaultBranch?: string | null;
+  defaultCategory?: string | null;
+  agreementName?: string | null;
   kind: string;
   year: number;
   month: number;
@@ -44,6 +55,7 @@ function toPayslip(opts: {
   signature?: Payslip["signature"];
 }): Payslip {
   const period = `${String(opts.month).padStart(2, "0")}/${opts.year}`;
+  const fromEmp = [named(opts.emp.positions), named(opts.emp.departments)].filter(Boolean).join(" / ");
   return {
     company: opts.company,
     cuit: opts.cuit,
@@ -55,8 +67,8 @@ function toPayslip(opts: {
     dni: opts.emp.dni,
     hireDate: opts.emp.hire_date,
     payDate: new Date(opts.year, opts.month, 0).toLocaleDateString("es-AR"),
-    branch: named(opts.emp.work_locations),
-    category: [named(opts.emp.positions), named(opts.emp.departments)].filter(Boolean).join(" / ") || null,
+    branch: named(opts.emp.work_locations) || opts.defaultBranch || null,
+    category: fromEmp || opts.agreementName || opts.defaultCategory || null,
     lines: linesFor(opts.kind, opts.emp, opts.extras, opts.month),
     signature: opts.signature,
   };
@@ -147,16 +159,16 @@ export async function generatePeriodReceipts(opts: {
   let empQ = db
     .from("employees")
     .select(
-      "id, first_name, last_name, employee_number, dni, hire_date, base_salary, user_id, work_location_id, department_id, position_id, departments(name), positions(name)",
+      "id, first_name, last_name, employee_number, dni, hire_date, base_salary, user_id, work_location_id, agreement_id, department_id, position_id, departments(name), positions(name)",
     )
     .eq("tenant_id", opts.tenantId)
     .eq("status", "active");
   if (opts.employeeId) empQ = empQ.eq("id", opts.employeeId);
 
-  const [{ data: tenant }, { data: settings }, { data: employees }, { data: novelties }, { data: existing }] =
+  const [{ data: tenant }, settingsRes, { data: employees }, { data: novelties }, { data: existing }] =
     await Promise.all([
       db.from("tenants").select("name").eq("id", opts.tenantId).single(),
-      db.from("tenant_settings").select("legal_name, cuit").eq("tenant_id", opts.tenantId).maybeSingle(),
+      db.from("tenant_settings").select("legal_name, cuit, recibo_sucursal, recibo_categoria").eq("tenant_id", opts.tenantId).maybeSingle(),
       empQ,
       db
         .from("payroll_novelties")
@@ -174,12 +186,21 @@ export async function generatePeriodReceipts(opts: {
     ]);
 
   const locIds = [...new Set((employees ?? []).map((e) => (e as { work_location_id?: string }).work_location_id).filter(Boolean))] as string[];
-  const { data: locs } = locIds.length
-    ? await db.from("work_locations").select("id, name").in("id", locIds)
-    : { data: [] as { id: string; name: string }[] };
+  const agrIds = [...new Set((employees ?? []).map((e) => (e as { agreement_id?: string }).agreement_id).filter(Boolean))] as string[];
+  const [{ data: locs }, { data: agrs }] = await Promise.all([
+    locIds.length ? db.from("work_locations").select("id, name").in("id", locIds) : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    agrIds.length
+      ? db.from("collective_agreements").select("id, name").in("id", agrIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+  ]);
   const locMap = new Map((locs ?? []).map((l) => [l.id, l.name]));
-
-  const company = settings?.legal_name || tenant?.name || "Empresa";
+  const agrMap = new Map((agrs ?? []).map((a) => [a.id, a.name]));
+  const slip = (settingsRes.data ?? {}) as CompanySlip;
+  if (settingsRes.error || (!slip.cuit && !slip.legal_name)) {
+    const plain = await db.from("tenant_settings").select("legal_name, cuit").eq("tenant_id", opts.tenantId).maybeSingle();
+    Object.assign(slip, plain.data ?? {});
+  }
+  const company = slip.legal_name || tenant?.name || "Empresa";
   let made = 0;
 
   for (const emp of (employees ?? []) as Emp[]) {
@@ -192,7 +213,10 @@ export async function generatePeriodReceipts(opts: {
       const bytes = payslipPdf(
         toPayslip({
           company,
-          cuit: settings?.cuit,
+          cuit: slip.cuit,
+          defaultBranch: slip.recibo_sucursal,
+          defaultCategory: slip.recibo_categoria,
+          agreementName: emp.agreement_id ? agrMap.get(emp.agreement_id) ?? null : null,
           kind,
           year: opts.year,
           month: opts.month,
@@ -246,13 +270,13 @@ export async function stampSignedPayslip(opts: {
     .eq("tenant_id", opts.tenantId)
     .single();
   if (!rec) return;
-  const [{ data: tenant }, { data: settings }, { data: emp }, { data: novelties }] = await Promise.all([
+  const [{ data: tenant }, settingsRes, { data: emp }, { data: novelties }] = await Promise.all([
     db.from("tenants").select("name").eq("id", opts.tenantId).single(),
-    db.from("tenant_settings").select("legal_name, cuit").eq("tenant_id", opts.tenantId).maybeSingle(),
+    db.from("tenant_settings").select("legal_name, cuit, recibo_sucursal, recibo_categoria").eq("tenant_id", opts.tenantId).maybeSingle(),
     db
       .from("employees")
       .select(
-        "id, first_name, last_name, employee_number, dni, hire_date, base_salary, user_id, work_location_id, departments(name), positions(name)",
+        "id, first_name, last_name, employee_number, dni, hire_date, base_salary, user_id, work_location_id, agreement_id, departments(name), positions(name)",
       )
       .eq("id", rec.employee_id)
       .single(),
@@ -265,11 +289,18 @@ export async function stampSignedPayslip(opts: {
       .in("status", ["approved", "liquidated"]),
   ]);
   if (!emp) return;
+  const slip = (settingsRes.data ?? {}) as CompanySlip;
   let branchName: string | null = null;
   const locId = (emp as { work_location_id?: string }).work_location_id;
   if (locId) {
     const { data: loc } = await db.from("work_locations").select("name").eq("id", locId).maybeSingle();
     branchName = loc?.name ?? null;
+  }
+  let agreementName: string | null = null;
+  const agrId = (emp as { agreement_id?: string }).agreement_id;
+  if (agrId) {
+    const { data: agr } = await db.from("collective_agreements").select("name").eq("id", agrId).maybeSingle();
+    agreementName = agr?.name ?? null;
   }
   const extras = (novelties ?? []).map((n) => ({
     concept: String(n.concept),
@@ -278,8 +309,11 @@ export async function stampSignedPayslip(opts: {
   }));
   const bytes = payslipPdf(
     toPayslip({
-      company: settings?.legal_name || tenant?.name || "Empresa",
-      cuit: settings?.cuit,
+      company: slip.legal_name || tenant?.name || "Empresa",
+      cuit: slip.cuit,
+      defaultBranch: slip.recibo_sucursal,
+      defaultCategory: slip.recibo_categoria,
+      agreementName,
       kind: rec.kind,
       year: rec.period_year,
       month: rec.period_month,

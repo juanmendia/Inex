@@ -24,13 +24,22 @@ export default async function ConfigPage() {
           Nombre de la empresa
           <input name="name" defaultValue={tenant?.name} className="field mt-1" />
         </label>
+        <p className="text-sm font-medium">Datos que salen en el recibo</p>
         <label className="block text-sm">
           Razón social
-          <input name="legal_name" defaultValue={settings?.legal_name ?? ""} className="field mt-1" />
+          <input name="legal_name" defaultValue={settings?.legal_name ?? ""} className="field mt-1" placeholder="Como figura en AFIP" />
         </label>
         <label className="block text-sm">
           CUIT
-          <input name="cuit" defaultValue={settings?.cuit ?? ""} className="field mt-1" />
+          <input name="cuit" defaultValue={settings?.cuit ?? ""} className="field mt-1" placeholder="30-xxxxxxxx-x" />
+        </label>
+        <label className="block text-sm">
+          Sucursal (si el empleado no tiene una asignada)
+          <input name="recibo_sucursal" defaultValue={(settings as { recibo_sucursal?: string | null })?.recibo_sucursal ?? ""} className="field mt-1" />
+        </label>
+        <label className="block text-sm">
+          Categoría (si el empleado no tiene puesto ni convenio)
+          <input name="recibo_categoria" defaultValue={(settings as { recibo_categoria?: string | null })?.recibo_categoria ?? ""} className="field mt-1" />
         </label>
         <label className="block text-sm">
           Horas mensuales para valor hora
