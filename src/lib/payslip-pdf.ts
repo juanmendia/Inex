@@ -158,11 +158,11 @@ export function payslipPdf(p: Payslip) {
   cmds.push(t(398, 188, p.monthName.toUpperCase(), 10, true));
 
   cmds.push(rect(L, 108, W, 54));
-  const letras = wrap(pesosEnLetras(net), 70);
+  const letras = wrap(pesosEnLetras(net).replace(/^SON PESOS\s+/, ""), 42);
   cmds.push(t(L + 8, 146, "SON PESOS NETOS", 6));
-  letras.forEach((line, i) => cmds.push(t(L + 8, 130 - i * 11, line, 8, true)));
-  cmds.push(tr(R - 8, 128, `$ ${money(net)}`, 12, true));
-  cmds.push(tr(R - 8, 146, "NETO PAGADO", 6));
+  letras.slice(0, 2).forEach((line, i) => cmds.push(t(L + 8, 130 - i * 10, line.slice(0, 44), 7, true)));
+  cmds.push(tr(R - 10, 128, `$ ${money(net)}`, 11, true));
+  cmds.push(tr(R - 10, 146, "NETO PAGADO", 6));
 
   cmds.push(rect(L, 32, 255, 70));
   cmds.push(rect(291, 32, 272, 70));
@@ -179,9 +179,9 @@ export function payslipPdf(p: Payslip) {
     cmds.push(t(L + 8, 48, "en el portal Inex.", 7));
   }
   cmds.push(t(299, 88, "OBSERVACIONES / ACREDITADO EN", 6));
-  cmds.push(t(299, 70, "Liquidacion generada por el empleador.", 7));
-  cmds.push(t(299, 56, "Art. 140 y 138 L.C.T. Recibo de haberes.", 7));
-  cmds.push(t(299, 42, "Documento generado por Inex RRHH.", 7));
+  cmds.push(t(299, 70, "Liquidacion generada por el empleador.", 6));
+  cmds.push(t(299, 56, "Art. 140 y 138 L.C.T. Recibo de haberes.", 6));
+  cmds.push(t(299, 42, "Documento generado por Inex RRHH.", 6));
 
   return assemblePdf(cmds.join("\n"));
 }
