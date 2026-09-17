@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { signedUrl } from "@/lib/files";
 import { ManualAttendanceForm } from "./manual-form";
 import { AttendanceBoard, type AttendancePunch } from "./attendance-board";
-import { isPunchOut } from "@/modules/attendance/actions";
+import { isPunchOut } from "@/lib/attendance";
 
 function named(raw: unknown): string | null {
   const v = Array.isArray(raw) ? raw[0] : raw;

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff } from "@/lib/auth/session";
 import { FACE_MATCH_MAX, faceDistance, parseDescriptor } from "@/lib/face-match";
 import { getMyEmployee, uploadPunchPhoto } from "@/lib/files";
+import { isPunchOut } from "@/lib/attendance";
 
 function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371000;
@@ -20,10 +21,6 @@ function revalidateLocations() {
   revalidatePath("/rrhh/asistencia");
   revalidatePath("/rrhh/configuracion");
   revalidatePath("/rrhh/empleados");
-}
-
-export function isPunchOut(row: { punch_type?: string | null; method?: string | null }) {
-  return row.punch_type === "out" || row.method === "missing_out" || String(row.method ?? "").endsWith(":out");
 }
 
 function baToday() {
