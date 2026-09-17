@@ -157,13 +157,9 @@ export async function punch(formData: FormData): Promise<string | null> {
     return "La cara no coincide con tu foto de referencia. Si cambiaste de look, pedile a RRHH que borre la foto y volvé a enrolarte.";
   }
   if (!deviceId) return "Este celular no se identificó. Recargá la página e intentá de nuevo.";
-  const bound = (me as { punch_device_id?: string | null }).punch_device_id;
-  if (bound && bound !== deviceId) {
-    return "Este usuario ya está atado a otro celular. Pedile a RRHH que lo desvincule si cambiaste de teléfono.";
-  }
   const db = createAdminClient();
   await closeStaleOpenIns({ tenantId: s.tenantId!, employeeId: me.id });
-  const [{ data: owner }, { data: firstOnPhone }, { data: otherFaces }] = await Promise.all([
+  const [{ data: owner }, { data: otherFaces }] = await Promise.all([
     db
       .from("employees")
       .select("id")
@@ -172,29 +168,14 @@ export async function punch(formData: FormData): Promise<string | null> {
       .neq("id", me.id)
       .maybeSingle(),
     db
-      .from("attendance_records")
-      .select("employee_id")
-      .eq("tenant_id", s.tenantId!)
-      .eq("device_id", deviceId)
-      .order("recorded_at", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    db
       .from("employees")
       .select("face_descriptor")
       .eq("tenant_id", s.tenantId!)
       .neq("id", me.id)
       .not("face_descriptor", "is", null),
   ]);
-  const mine = bound === deviceId || firstOnPhone?.employee_id === me.id;
-  if (owner && !mine) {
+  if (owner) {
     return "Este celular ya está usado por otro empleado. Cada usuario tiene que fichar desde su propio teléfono.";
-  }
-  if (!mine && firstOnPhone && firstOnPhone.employee_id !== me.id) {
-    return "Este celular ya está usado por otro empleado. Cada usuario tiene que fichar desde su propio teléfono.";
-  }
-  if (owner && mine) {
-    await db.from("employees").update({ punch_device_id: null }).eq("id", owner.id).eq("tenant_id", s.tenantId!);
   }
   for (const row of otherFaces ?? []) {
     const other = parseDescriptor(row.face_descriptor);
@@ -285,9 +266,7 @@ export async function punch(formData: FormData): Promise<string | null> {
     });
     if (fallback.error) return fallback.error.message;
   }
-  if (!bound) {
-    await db.from("employees").update({ punch_device_id: deviceId }).eq("id", me.id);
-  }
+  await db.from("employees").update({ punch_device_id: deviceId }).eq("id", me.id);
   const face = (me as { face_photo_path?: string | null }).face_photo_path;
   const facePatch: Record<string, unknown> = {};
   if (!face && photoPath) {

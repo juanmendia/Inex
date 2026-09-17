@@ -136,11 +136,15 @@ export default async function FichaEmpleado({
           <button className="btn btn-primary md:col-span-2">Guardar</button>
         </form>
       )}
-      {tab === "laboral" && emp.punch_device_id ? (
+      {tab === "laboral" ? (
         <form action={resetPunchDevice} className="panel mt-3 p-5 text-sm">
           <input type="hidden" name="id" value={emp.id} />
-          <p>Celular de fichaje vinculado. Si cambió de teléfono o prestó el usuario, desvinculá para que el próximo fichaje ate el nuevo.</p>
-          <button className="btn btn-ghost mt-2">Desvincular celular</button>
+          <p>
+            {emp.punch_device_id
+              ? "Celular de fichaje vinculado. Si no puede fichar desde el suyo, desvinculá y que ficha de nuevo: ese teléfono queda atado a él."
+              : "No hay celular atado. El próximo fichaje válido queda vinculado a ese teléfono."}
+          </p>
+          <button className="btn btn-ghost mt-2">Desvincular / arrancar de cero</button>
         </form>
       ) : null}
       {tab === "laboral" ? (

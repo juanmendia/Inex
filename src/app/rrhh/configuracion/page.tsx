@@ -2,6 +2,7 @@ import { Shell } from "@/components/shell";
 import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveTenantSettings } from "@/modules/events/actions";
+import { resetAllPunchDevices } from "@/modules/employees/actions";
 import { SucursalesPanel } from "./sucursales-panel";
 
 export default async function ConfigPage() {
@@ -53,6 +54,14 @@ export default async function ConfigPage() {
           El empleado tiene que fichar desde el celular (GPS en la sede)
         </label>
         <button className="btn btn-primary">Guardar</button>
+      </form>
+
+      <form action={resetAllPunchDevices} className="panel space-y-2 p-6">
+        <p className="text-sm font-medium">Celulares de fichaje</p>
+        <p className="text-sm" style={{ color: "var(--muted)" }}>
+          Borra todos los vínculos. Cada persona vuelve a atar su teléfono en el próximo fichaje. El que ficha primero en un celular se queda con ese aparato.
+        </p>
+        <button className="btn btn-ghost">Arrancar celulares de cero</button>
       </form>
 
       <SucursalesPanel locations={locations ?? []} />

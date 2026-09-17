@@ -213,8 +213,18 @@ export async function resetPunchDevice(formData: FormData) {
   const id = String(formData.get("id"));
   const db = createAdminClient();
   await db.from("employees").update({ punch_device_id: null }).eq("id", id).eq("tenant_id", s.tenantId!);
+  await db.from("attendance_records").update({ device_id: null }).eq("employee_id", id).eq("tenant_id", s.tenantId!);
   revalidatePath(`/rrhh/empleados/${id}`);
   revalidatePath("/rrhh/empleados");
+}
+
+export async function resetAllPunchDevices() {
+  const s = await requireStaff();
+  const db = createAdminClient();
+  await db.from("employees").update({ punch_device_id: null }).eq("tenant_id", s.tenantId!);
+  await db.from("attendance_records").update({ device_id: null }).eq("tenant_id", s.tenantId!);
+  revalidatePath("/rrhh/empleados");
+  revalidatePath("/rrhh/configuracion");
 }
 
 export async function validateFacePhoto(formData: FormData) {
