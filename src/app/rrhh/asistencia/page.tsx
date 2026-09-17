@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { signedUrl } from "@/lib/files";
 import { ManualAttendanceForm } from "./manual-form";
 import { AttendanceBoard, type AttendancePunch } from "./attendance-board";
+import { isPunchOut } from "@/modules/attendance/actions";
 
 function named(raw: unknown): string | null {
   const v = Array.isArray(raw) ? raw[0] : raw;
@@ -91,7 +92,8 @@ export default async function AsistenciaRrhh({
       name: e.nom,
       search: e.search,
       at: r.recorded_at,
-      out: r.punch_type === "out" || String(r.method ?? "").endsWith(":out"),
+      out: isPunchOut(r),
+      missingOut: String((r as { method?: string }).method ?? "") === "missing_out",
       branch: named(r.work_locations),
       photo: photos.get(r.id) ?? null,
       meters: (r as { distance_meters?: number | null }).distance_meters ?? null,

@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff } from "@/lib/auth/session";
 import { getMyEmployee, notifyStaff, notifyUsers, uploadLeaveAttachment } from "@/lib/files";
 import { isArHoliday, buenosAiresDate } from "@/lib/ar-holidays";
-import { datesInRange, isWeekday, coversDay } from "@/lib/time-off";
+import { datesInRange, isWeekday, coversDay, readPortion } from "@/lib/time-off";
 import { LEAVE_CATALOG } from "@/lib/leave-catalog";
 import { roundMoney } from "@/lib/labels";
 
@@ -70,12 +70,27 @@ export async function requestTimeOff(formData: FormData) {
     leave_type_id: lt.id,
     starts_on: starts,
     ends_on: ends,
+    portion: readPortion(formData, starts, ends),
     status: "pending",
     note: String(formData.get("note") ?? "").trim() || null,
     certificate_path: cert,
     created_by: s.userId,
   });
-  if (error) throw new Error("No se pudo pedir. Corré 0013 y 0015 en Supabase.");
+  if (error) {
+    const again = await db.from("time_off").insert({
+      tenant_id: s.tenantId,
+      employee_id: me.id,
+      kind: lt.code,
+      leave_type_id: lt.id,
+      starts_on: starts,
+      ends_on: ends,
+      status: "pending",
+      note: String(formData.get("note") ?? "").trim() || null,
+      certificate_path: cert,
+      created_by: s.userId,
+    });
+    if (again.error) throw new Error("No se pudo pedir. Corré 0013, 0015 y 0020 en Supabase.");
+  }
   await notifyStaff(s.tenantId!, "Pedido de licencia", `${me.first_name} ${me.last_name}: ${lt.name} ${starts} → ${ends}`, "/rrhh/ausencias");
   touch();
 }
@@ -108,6 +123,7 @@ export async function updateMyTimeOff(formData: FormData) {
       note: String(formData.get("note") ?? "").trim() || null,
       kind: lt.code,
       leave_type_id: lt.id,
+      portion: readPortion(formData, starts, ends),
       ...(cert ? { certificate_path: cert } : {}),
     })
     .eq("id", id);
@@ -185,13 +201,29 @@ export async function staffTimeOff(formData: FormData) {
     leave_type_id: lt?.id ?? null,
     starts_on: starts,
     ends_on: ends,
+    portion: readPortion(formData, starts, ends),
     status: "approved",
     note: String(formData.get("note") ?? "").trim() || null,
     certificate_path: cert,
     created_by: s.userId,
     decided_by: s.userId,
   });
-  if (error) throw new Error("No se pudo guardar. Corré 0013_time_off.sql.");
+  if (error) {
+    const again = await db.from("time_off").insert({
+      tenant_id: s.tenantId,
+      employee_id: code === "company_off" ? null : employeeId,
+      kind: code,
+      leave_type_id: lt?.id ?? null,
+      starts_on: starts,
+      ends_on: ends,
+      status: "approved",
+      note: String(formData.get("note") ?? "").trim() || null,
+      certificate_path: cert,
+      created_by: s.userId,
+      decided_by: s.userId,
+    });
+    if (again.error) throw new Error("No se pudo guardar. Corré 0013 y 0020 en Supabase.");
+  }
   touch();
 }
 

@@ -2,7 +2,7 @@ import { Shell } from "@/components/shell";
 import { requireEmployee } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMyEmployee, signedUrl } from "@/lib/files";
-import { TIME_OFF_KIND, TIME_OFF_STATUS } from "@/lib/time-off";
+import { TIME_OFF_KIND, TIME_OFF_STATUS, TIME_OFF_PORTION } from "@/lib/time-off";
 import { ensureLeaveTypes, requestTimeOff, updateMyTimeOff, cancelMyTimeOff } from "@/modules/time-off/actions";
 
 export default async function VacacionesEmpleado() {
@@ -37,6 +37,11 @@ export default async function VacacionesEmpleado() {
         </select>
         <input name="starts_on" type="date" required className="field" />
         <input name="ends_on" type="date" required className="field" />
+        <select name="portion" className="field md:col-span-2">
+          <option value="full">Día completo</option>
+          <option value="morning">Solo la mañana (trámite / medio día)</option>
+          <option value="afternoon">Solo la tarde (trámite / medio día)</option>
+        </select>
         <input name="note" placeholder="Nota" className="field md:col-span-2" />
         <label className="text-sm md:col-span-2">
           Certificado (foto o PDF), si corresponde
@@ -50,7 +55,9 @@ export default async function VacacionesEmpleado() {
           return (
             <li key={r.id} className="space-y-2 px-4 py-3 text-sm">
               <p>
-                {label} · {r.starts_on} → {r.ends_on} · {TIME_OFF_STATUS[r.status] ?? r.status}
+                {label} · {r.starts_on} → {r.ends_on}
+                {r.portion && r.portion !== "full" ? ` · ${TIME_OFF_PORTION[r.portion] ?? r.portion}` : ""} ·{" "}
+                {TIME_OFF_STATUS[r.status] ?? r.status}
               </p>
               {certs[r.id] ? (
                 <a className="text-[#142236]" href={certs[r.id]} target="_blank" rel="noreferrer">
@@ -69,6 +76,11 @@ export default async function VacacionesEmpleado() {
                   </select>
                   <input name="starts_on" type="date" defaultValue={r.starts_on} className="field max-w-40" />
                   <input name="ends_on" type="date" defaultValue={r.ends_on} className="field max-w-40" />
+                  <select name="portion" defaultValue={r.portion ?? "full"} className="field max-w-xs">
+                    <option value="full">Día completo</option>
+                    <option value="morning">Solo mañana</option>
+                    <option value="afternoon">Solo tarde</option>
+                  </select>
                   <input name="note" defaultValue={r.note ?? ""} className="field max-w-xs" />
                   <input name="certificate" type="file" accept="image/*,application/pdf" className="text-sm" />
                   <button className="btn btn-primary">Guardar</button>

@@ -15,6 +15,7 @@ export type AttendancePunch = {
   branch: string | null;
   photo: string | null;
   meters: number | null;
+  missingOut?: boolean;
 };
 
 function dayKey(iso: string) {
@@ -43,6 +44,7 @@ function hoursDecimal(ms: number) {
 
 function PunchTime({ punch, empty }: { punch: AttendancePunch | null; empty: string }) {
   if (!punch) return <div>{empty}</div>;
+  if (punch.missingOut) return <div className="text-red-800">No fichó</div>;
   return (
     <div className="flex items-center gap-1.5">
       <span>{clock(punch.at)}</span>
@@ -115,7 +117,8 @@ export function AttendanceBoard({
             const d = new Date(l.out.at).getTime() - new Date(l.inn.at).getTime();
             return acc + Math.max(0, d);
           }, 0);
-          const ok = legs.length > 0 && legs.every((l) => l.inn && l.out);
+          const missing = legs.some((l) => l.out?.missingOut || (!l.out && l.inn));
+          const ok = legs.length > 0 && legs.every((l) => l.inn && l.out) && !missing;
           const firstIn = legs.find((l) => l.inn)?.inn ?? null;
           const lastOut = [...legs].reverse().find((l) => l.out)?.out ?? null;
           return {

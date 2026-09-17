@@ -2,7 +2,7 @@ import { Shell } from "@/components/shell";
 import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signedUrl } from "@/lib/files";
-import { TIME_OFF_KIND, TIME_OFF_STATUS } from "@/lib/time-off";
+import { TIME_OFF_KIND, TIME_OFF_STATUS, TIME_OFF_PORTION } from "@/lib/time-off";
 import {
   decideTimeOff,
   staffTimeOff,
@@ -21,7 +21,7 @@ export default async function AusenciasRrhh() {
   const [{ data: rows }, { data: people }] = await Promise.all([
     db
       .from("time_off")
-      .select("id, kind, leave_type_id, starts_on, ends_on, status, note, certificate_path, employee_id, employees(first_name, last_name)")
+      .select("id, kind, leave_type_id, starts_on, ends_on, portion, status, note, certificate_path, employee_id, employees(first_name, last_name)")
       .eq("tenant_id", s.tenantId!)
       .order("starts_on", { ascending: false })
       .limit(80),
@@ -66,6 +66,11 @@ export default async function AusenciasRrhh() {
             <input name="starts_on" type="date" required className="field" />
             <input name="ends_on" type="date" className="field" />
           </div>
+          <select name="portion" className="field">
+            <option value="full">Día completo</option>
+            <option value="morning">Solo la mañana</option>
+            <option value="afternoon">Solo la tarde</option>
+          </select>
           <input name="note" placeholder="Motivo" className="field" />
           <input name="certificate" type="file" accept="image/*,application/pdf" className="text-sm" />
           <button className="btn btn-primary">Guardar</button>
@@ -127,7 +132,9 @@ export default async function AusenciasRrhh() {
             <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
               <span>
                 {who} · {label} · {r.starts_on}
-                {r.ends_on !== r.starts_on ? ` → ${r.ends_on}` : ""} · {TIME_OFF_STATUS[r.status] ?? r.status}
+                {r.ends_on !== r.starts_on ? ` → ${r.ends_on}` : ""}
+                {r.portion && r.portion !== "full" ? ` · ${TIME_OFF_PORTION[r.portion] ?? r.portion}` : ""} ·{" "}
+                {TIME_OFF_STATUS[r.status] ?? r.status}
                 {r.note ? ` · ${r.note}` : ""}
                 {certs[r.id] ? (
                   <>

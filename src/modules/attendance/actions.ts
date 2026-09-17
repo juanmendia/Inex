@@ -22,6 +22,48 @@ function revalidateLocations() {
   revalidatePath("/rrhh/empleados");
 }
 
+export function isPunchOut(row: { punch_type?: string | null; method?: string | null }) {
+  return row.punch_type === "out" || row.method === "missing_out" || String(row.method ?? "").endsWith(":out");
+}
+
+function baToday() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+}
+
+const STALE_IN_MS = 16 * 60 * 60 * 1000;
+
+/** Si quedó una entrada sin salida más de 16 h, se cierra como "no fichó". */
+export async function closeStaleOpenIns(opts?: { tenantId?: string; employeeId?: string }) {
+  const db = createAdminClient();
+  let q = db
+    .from("attendance_records")
+    .select("id, tenant_id, employee_id, punch_type, method, recorded_at")
+    .gte("recorded_at", new Date(Date.now() - 4 * 86400000).toISOString())
+    .order("recorded_at", { ascending: false })
+    .limit(opts?.employeeId ? 12 : 4000);
+  if (opts?.tenantId) q = q.eq("tenant_id", opts.tenantId);
+  if (opts?.employeeId) q = q.eq("employee_id", opts.employeeId);
+  const { data } = await q;
+  const seen = new Set<string>();
+  const rows: Record<string, unknown>[] = [];
+  for (const r of data ?? []) {
+    if (seen.has(r.employee_id)) continue;
+    seen.add(r.employee_id);
+    if (isPunchOut(r)) continue;
+    if (Date.now() - new Date(r.recorded_at).getTime() < STALE_IN_MS) continue;
+    rows.push({
+      tenant_id: r.tenant_id,
+      employee_id: r.employee_id,
+      method: "missing_out",
+      punch_type: "out",
+      recorded_at: new Date(new Date(r.recorded_at).getTime() + 60_000).toISOString(),
+      server_recorded_at: new Date().toISOString(),
+    });
+  }
+  if (rows.length) await db.from("attendance_records").insert(rows);
+  return rows.length;
+}
+
 /** Foto de referencia en la ficha, o la primera que ya quedó en un fichaje. */
 export async function employeeHasFacePhoto(employeeId: string) {
   const db = createAdminClient();
@@ -123,7 +165,8 @@ export async function punch(formData: FormData): Promise<string | null> {
     return "Este usuario ya está atado a otro celular. Pedile a RRHH que lo desvincule si cambiaste de teléfono.";
   }
   const db = createAdminClient();
-  const [{ data: otherPhone }, { data: otherPunch }, { data: otherFaces }] = await Promise.all([
+  await closeStaleOpenIns({ tenantId: s.tenantId!, employeeId: me.id });
+  const [{ data: owner }, { data: firstOnPhone }, { data: otherFaces }] = await Promise.all([
     db
       .from("employees")
       .select("id")
@@ -133,10 +176,10 @@ export async function punch(formData: FormData): Promise<string | null> {
       .maybeSingle(),
     db
       .from("attendance_records")
-      .select("id")
+      .select("employee_id")
       .eq("tenant_id", s.tenantId!)
       .eq("device_id", deviceId)
-      .neq("employee_id", me.id)
+      .order("recorded_at", { ascending: true })
       .limit(1)
       .maybeSingle(),
     db
@@ -146,8 +189,15 @@ export async function punch(formData: FormData): Promise<string | null> {
       .neq("id", me.id)
       .not("face_descriptor", "is", null),
   ]);
-  if (otherPhone || otherPunch) {
+  const mine = bound === deviceId || firstOnPhone?.employee_id === me.id;
+  if (owner && !mine) {
     return "Este celular ya está usado por otro empleado. Cada usuario tiene que fichar desde su propio teléfono.";
+  }
+  if (!mine && firstOnPhone && firstOnPhone.employee_id !== me.id) {
+    return "Este celular ya está usado por otro empleado. Cada usuario tiene que fichar desde su propio teléfono.";
+  }
+  if (owner && mine) {
+    await db.from("employees").update({ punch_device_id: null }).eq("id", owner.id).eq("tenant_id", s.tenantId!);
   }
   for (const row of otherFaces ?? []) {
     const other = parseDescriptor(row.face_descriptor);
@@ -191,19 +241,15 @@ export async function punch(formData: FormData): Promise<string | null> {
     }
   }
 
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
   const { data: today } = await db
     .from("attendance_records")
     .select("punch_type, method")
     .eq("employee_id", me.id)
-    .gte("recorded_at", start.toISOString())
+    .gte("recorded_at", `${baToday()}T00:00:00-03:00`)
     .order("recorded_at", { ascending: false })
     .limit(1);
   const last = today?.[0];
-  const lastIsOut = Boolean(
-    last && (last.punch_type === "out" || String(last.method ?? "").endsWith(":out")),
-  );
+  const lastIsOut = Boolean(last && isPunchOut(last));
   const lastIsIn = Boolean(last) && !lastIsOut;
   if (wanted === "in" && lastIsIn) return "Ya registraste la entrada. Ahora fichá la salida.";
   if (wanted === "out" && !lastIsIn) return "Primero tenés que fichar la entrada.";
