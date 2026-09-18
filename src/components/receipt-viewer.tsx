@@ -46,11 +46,11 @@ export function ReceiptViewer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-8">
       <button className="absolute inset-0 bg-[#122033]/45 backdrop-blur-md" aria-label="Cerrar" onClick={onClose} />
-      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
-          <p className="mr-auto text-sm font-medium">{title}</p>
+      <div className="relative flex h-[100dvh] w-full max-w-4xl flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:rounded-2xl">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
+          <p className="mr-auto min-w-0 truncate text-sm font-medium">{title}</p>
           <a className="btn btn-ghost inline-flex items-center gap-1 text-sm" href={url ?? undefined} download={`${title}.pdf`}>
             <Download size={16} /> Bajar
           </a>
@@ -98,16 +98,16 @@ export function ReceiptViewer({
             <X size={18} />
           </button>
         </div>
-        <div className="min-h-0 flex-1 bg-zinc-200 p-3">
-          {err ? <p className="text-sm text-red-600">{err}</p> : null}
-          {!url && !err ? <p className="text-sm text-zinc-500">Cargando…</p> : null}
-          {url ? <iframe title={title} src={url} className="h-[70vh] w-full rounded-lg bg-white" /> : null}
-        </div>
         {canSign ? (
-          <div className="border-t px-4 py-3">
+          <div className="order-2 shrink-0 border-b bg-white px-4 py-3">
             <SignButtons receiptId={receiptId} pending={status === "pending"} />
           </div>
         ) : null}
+        <div className="order-3 min-h-0 flex-1 overflow-hidden bg-zinc-200 p-2 sm:p-3">
+          {err ? <p className="text-sm text-red-600">{err}</p> : null}
+          {!url && !err ? <p className="text-sm text-zinc-500">Cargando…</p> : null}
+          {url ? <iframe title={title} src={url} className="h-full min-h-[40vh] w-full rounded-lg bg-white sm:min-h-0" /> : null}
+        </div>
       </div>
     </div>
   );

@@ -13,15 +13,15 @@ export function SignButtons({ receiptId, pending }: { receiptId: string; pending
   if (!pending) return <p className="text-sm text-zinc-500">Este recibo ya fue firmado.</p>;
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
       <button
-        className="rounded-lg bg-[#142236] px-4 py-2 text-sm text-white"
+        className="w-full rounded-lg bg-[#142236] px-4 py-3 text-sm text-white sm:w-auto sm:py-2"
         onClick={() => setOpen("conform")}
       >
         Firmar en conformidad
       </button>
       <button
-        className="rounded-lg border border-zinc-300 px-4 py-2 text-sm"
+        className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm sm:w-auto sm:py-2"
         onClick={() => setOpen("non")}
       >
         Firmar NO en conformidad
