@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff, requireSession } from "@/lib/auth/session";
 import { FACE_MATCH_MAX, faceDistance, parseDescriptor } from "@/lib/face-match";
 import { getMyEmployee, uploadPunchPhoto, notifyStaff, notifyUsers } from "@/lib/files";
-import { atBuenosAires, baYmd, isPunchOut, laterHm, viaticNoveltyNote } from "@/lib/attendance";
+import { atBuenosAires, baDateTime, baYmd, isPunchOut, laterHm, viaticNoveltyNote } from "@/lib/attendance";
 import { roundMoney } from "@/lib/labels";
 import { isStaff } from "@/lib/auth/roles";
 
@@ -371,8 +371,8 @@ export async function manualAttendance(_prev: string | null, formData: FormData)
   const outAt = String(formData.get("out_at") ?? "").trim();
   if (!employeeId) return "Elegí un empleado.";
   if (!inAt && !outAt) return "Cargá entrada, salida, o las dos.";
-  const inDate = inAt ? new Date(inAt) : null;
-  const outDate = outAt ? new Date(outAt) : null;
+  const inDate = inAt ? baDateTime(inAt) : null;
+  const outDate = outAt ? baDateTime(outAt) : null;
   if (inAt && (!inDate || Number.isNaN(inDate.getTime()))) return "Hora de entrada inválida.";
   if (outAt && (!outDate || Number.isNaN(outDate.getTime()))) return "Hora de salida inválida.";
   if (inDate && outDate && outDate <= inDate) return "La salida tiene que ser después de la entrada.";
@@ -448,11 +448,11 @@ export async function deleteAttendancePunch(formData: FormData) {
   revalidatePath("/empleado/fichaje");
 }
 
-/** Borra fotos de fichaje de más de 7 días. No toca la foto de referencia de la ficha. */
+/** Borra fotos de fichaje de más de 14 días. No toca la foto de referencia de la ficha. */
 export async function purgeOldPunchPhotos() {
   const db = createAdminClient();
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 7);
+  cutoff.setDate(cutoff.getDate() - 14);
   const { data: faces } = await db.from("employees").select("face_photo_path");
   const keep = new Set((faces ?? []).map((f) => f.face_photo_path).filter(Boolean) as string[]);
   let removed = 0;
@@ -482,6 +482,7 @@ function touchViatic() {
   revalidatePath("/rrhh/asistencia");
   revalidatePath("/rrhh/liquidacion");
   revalidatePath("/rrhh/viaticos");
+  revalidatePath("/empleado");
 }
 
 async function dropViaticNovelty(db: ReturnType<typeof createAdminClient>, tenantId: string, employeeId: string, day: string) {
@@ -520,6 +521,7 @@ export async function declareViaticDay(_prev: string | null, formData: FormData)
   if (!employeeId) return "Elegí el empleado.";
   if (!isStaff(s.roles) && me?.id !== employeeId) return "No podés cargar el viático de otra persona.";
   const day = String(formData.get("day") ?? "").slice(0, 10) || baYmd();
+  if (!isStaff(s.roles) && day < baYmd()) return "El día de viático no puede ser anterior a hoy.";
   const note = String(formData.get("note") ?? "").trim() || null;
   const payVia = String(formData.get("pay_via") ?? "recibo") === "cash" ? "cash" : "recibo";
   const staffCreates = isStaff(s.roles);

@@ -23,9 +23,15 @@ export default async function FichajePage() {
     : { data: [] };
 
   const todayYmd = baYmd();
-  const { data: viaticToday } = me
-    ? await db.from("viatic_days").select("id, pay_via, paid_at, status").eq("employee_id", me.id).eq("day", todayYmd).maybeSingle()
-    : { data: null };
+  const { data: upcoming } = me
+    ? await db
+        .from("viatic_days")
+        .select("day, pay_via, paid_at, status, note")
+        .eq("employee_id", me.id)
+        .gte("day", todayYmd)
+        .order("day")
+        .limit(12)
+    : { data: [] };
   const last = today?.length ? today[today.length - 1] : null;
   const lastOut = last && (last.punch_type === "out" || String(last.method).endsWith(":out"));
   const next = !last || lastOut ? "in" : "out";
@@ -40,18 +46,21 @@ export default async function FichajePage() {
           <PunchPad next={next} hasFace={hasFace} />
         </div>
         <ViaticForm
-          day={todayYmd}
-          already={Boolean(viaticToday)}
-          payVia={viaticToday?.pay_via ?? undefined}
-          paid={Boolean(viaticToday?.paid_at)}
-          status={viaticToday?.status ?? undefined}
+          defaultDay={todayYmd}
+          upcoming={(upcoming ?? []).map((v) => ({
+            day: String(v.day).slice(0, 10),
+            pay_via: v.pay_via,
+            paid_at: v.paid_at,
+            status: v.status,
+            note: v.note,
+          }))}
         />
         <ul className="mt-6 space-y-2 text-sm">
           {(today ?? []).map((r) => {
             const out = r.punch_type === "out" || String(r.method).endsWith(":out");
             return (
               <li key={r.id} className="text-zinc-600">
-                {out ? "Salida" : "Entrada"} · {new Date(r.recorded_at).toLocaleTimeString("es-AR")}
+                {out ? "Salida" : "Entrada"} · {new Date(r.recorded_at).toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit" })}
                 {r.distance_meters != null ? ` · ${r.distance_meters} m de la sede` : ""}
               </li>
             );

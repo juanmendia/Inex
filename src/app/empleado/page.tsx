@@ -3,7 +3,9 @@ import { Shell } from "@/components/shell";
 import { requireEmployee } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMyEmployee } from "@/lib/files";
+import { baYmd } from "@/lib/attendance";
 import { employeeHasFacePhoto } from "@/modules/attendance/actions";
+import { ViaticForm } from "@/app/empleado/fichaje/viatic-form";
 import Link from "next/link";
 
 function nextPunch(records: { punch_type: string | null; method: string | null }[] | null): "in" | "out" {
@@ -21,7 +23,9 @@ export default async function EmpleadoHome() {
   const dayStart = new Date();
   dayStart.setHours(0, 0, 0, 0);
 
-  const [{ count: pending }, { data: events }, { data: mates }, { data: settings }, { data: today }] = await Promise.all([
+  const todayYmd = baYmd();
+  const [{ count: pending }, { data: events }, { data: mates }, { data: settings }, { data: today }, { data: myViatics }] =
+    await Promise.all([
     db
       .from("receipts")
       .select("id", { count: "exact", head: true })
@@ -49,6 +53,15 @@ export default async function EmpleadoHome() {
           .order("recorded_at", { ascending: false })
           .limit(8)
       : Promise.resolve({ data: [] }),
+    me
+      ? db
+          .from("viatic_days")
+          .select("day, pay_via, paid_at, status, note")
+          .eq("employee_id", me.id)
+          .gte("day", baYmd())
+          .order("day")
+          .limit(12)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const hour = now.getHours();
@@ -67,6 +80,19 @@ export default async function EmpleadoHome() {
     <Shell area="empleado" title="Inicio" session={s}>
       <p className="text-sm text-zinc-500">{saludo}</p>
       <h2 className="text-2xl font-semibold">Hola, {me?.first_name ?? s.fullName}</h2>
+
+      <div className="panel mt-6 max-w-md p-5">
+        <ViaticForm
+          defaultDay={todayYmd}
+          upcoming={(myViatics ?? []).map((v) => ({
+            day: String(v.day).slice(0, 10),
+            pay_via: v.pay_via,
+            paid_at: v.paid_at,
+            status: v.status,
+            note: v.note,
+          }))}
+        />
+      </div>
 
       {settings?.require_mobile_punch ? (
         <div className="panel mt-6 max-w-md p-5">

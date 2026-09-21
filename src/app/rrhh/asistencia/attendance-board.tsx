@@ -43,6 +43,37 @@ function hoursDecimal(ms: number) {
   return Math.round((ms / 3600000) * 100) / 100;
 }
 
+function FaceThumb({ src }: { src: string }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        className="h-9 w-9 cursor-zoom-in rounded-lg object-cover"
+        onMouseEnter={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const size = 220;
+          const left = Math.min(r.right + 10, window.innerWidth - size - 12);
+          const top = Math.min(Math.max(8, r.top + r.height / 2 - size / 2), window.innerHeight - size - 12);
+          setPos({ x: left, y: top });
+        }}
+        onMouseLeave={() => setPos(null)}
+      />
+      {pos ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          className="pointer-events-none fixed z-[80] h-[220px] w-[220px] rounded-2xl object-cover shadow-2xl ring-1 ring-black/20"
+          style={{ left: pos.x, top: pos.y }}
+        />
+      ) : null}
+    </>
+  );
+}
+
 function PunchTime({ punch, empty }: { punch: AttendancePunch | null; empty: string }) {
   if (!punch) return <div>{empty}</div>;
   if (punch.missingOut) return <div className="text-red-800">No fichó</div>;
@@ -259,7 +290,7 @@ export function AttendanceBoard({
       )}
 
       {days.map((d) => (
-        <section key={d.date} className="panel overflow-hidden">
+        <section key={d.date} className="panel overflow-visible">
           <h2 className="border-b px-4 py-3 text-sm font-medium" style={{ borderColor: "var(--line)" }}>
             {new Date(d.date + "T12:00:00").toLocaleDateString("es-AR", {
               weekday: "long",
@@ -288,10 +319,7 @@ export function AttendanceBoard({
                   <tr key={p.id} className={p.viatic ? "bg-sky-50/80" : p.ok ? "bg-emerald-50/80" : "bg-red-50/80"}>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
-                        {p.photo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.photo} alt="" className="h-9 w-9 rounded-lg object-cover" />
-                        ) : null}
+                        {p.photo ? <FaceThumb src={p.photo} /> : null}
                         {p.name}
                       </div>
                     </td>

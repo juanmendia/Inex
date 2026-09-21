@@ -18,69 +18,78 @@ function PayViaFields() {
   );
 }
 
-export function ViaticForm({
-  day,
-  employeeId,
-  already,
-  payVia,
-  paid,
-  status,
-}: {
+export type MyViatic = {
   day: string;
+  pay_via: string | null;
+  paid_at: string | null;
+  status: string | null;
+  note: string | null;
+};
+
+const ST: Record<string, string> = {
+  pending: "Esperando a RRHH",
+  approved: "Autorizado",
+  rejected: "No autorizado",
+};
+
+export function ViaticForm({
+  defaultDay,
+  employeeId,
+  upcoming = [],
+}: {
+  defaultDay: string;
   employeeId?: string;
-  already?: boolean;
-  payVia?: string;
-  paid?: boolean;
-  status?: string;
+  upcoming?: MyViatic[];
 }) {
   const [message, action, pending] = useActionState(declareViaticDay, null);
-  if (already) {
-    const st = status ?? "approved";
-    return (
-      <form action={cancelViaticDay} className="mt-4 rounded-xl bg-sky-50 p-4 text-sm">
+  return (
+    <div className="space-y-3">
+      <form action={action} className="space-y-2 rounded-xl bg-zinc-50 p-4 text-sm">
         {employeeId ? <input type="hidden" name="employee_id" value={employeeId} /> : null}
-        <input type="hidden" name="day" value={day} />
-        <p className="font-medium text-sky-950">
-          {st === "pending" ? "Viático pedido, esperando a RRHH" : st === "rejected" ? "RRHH no autorizó el viático" : "Hoy estás de viático"}
+        <p className="font-medium">¿Salís de viático?</p>
+        <p className="text-xs" style={{ color: "var(--muted)" }}>
+          Pedilo antes de irte. Podés cargar hoy o un día próximo (ej. el 23). RRHH autoriza según caja.
         </p>
-        <p className="mt-1 text-xs text-sky-800">
-          {st === "pending"
-            ? "Hasta que autoricen (caja / disponibilidad) no cuenta como viático."
-            : st === "rejected"
-              ? "Podés fichar con normalidad. Si hay caja más adelante, pedilo de nuevo."
-              : paid
-                ? "Ya está cobrado: no entra al recibo."
-                : payVia === "cash"
-                  ? "Lo cobrás aparte. RRHH lo tilda cuando te lo entrega."
-                  : "Va en el recibo del mes, salvo que RRHH lo marque como ya pagado."}
-        </p>
-        {st === "pending" || st === "rejected" ? (
-          <button className="btn btn-ghost mt-2 text-xs">{st === "pending" ? "Cancelar pedido" : "Quitar"}</button>
-        ) : !paid ? (
-          <button className="btn btn-ghost mt-2 text-xs">Quitar</button>
+        <label className="block text-xs">
+          Día
+          <input name="day" type="date" required defaultValue={defaultDay} min={defaultDay} className="field mt-1" />
+        </label>
+        <PayViaFields />
+        <input name="note" placeholder="Destino o nota (opcional)" className="field" />
+        <button disabled={pending} className="btn btn-primary">
+          {pending ? "…" : "Pedir viático"}
+        </button>
+        {message ? (
+          <p className="text-xs" style={{ color: "var(--accent)" }}>
+            {message}
+          </p>
         ) : null}
       </form>
-    );
-  }
-  return (
-    <form action={action} className="mt-4 space-y-2 rounded-xl bg-zinc-50 p-4 text-sm">
-      {employeeId ? <input type="hidden" name="employee_id" value={employeeId} /> : null}
-      <input type="hidden" name="day" value={day} />
-      <p className="font-medium">¿Salís de viático?</p>
-      <p className="text-xs" style={{ color: "var(--muted)" }}>
-        Cargalo antes de irte. RRHH autoriza según caja. Elegí recibo o cobro al día siguiente.
-      </p>
-      <PayViaFields />
-      <input name="note" placeholder="Destino o nota (opcional)" className="field" />
-      <button disabled={pending} className="btn btn-primary">
-        {pending ? "…" : "Pedir viático"}
-      </button>
-      {message ? (
-        <p className="text-xs" style={{ color: "var(--accent)" }}>
-          {message}
-        </p>
+      {upcoming.length ? (
+        <ul className="space-y-2 text-sm">
+          {upcoming.map((v) => (
+            <li key={v.day} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sky-50 px-3 py-2">
+              <p>
+                <span className="font-medium">{v.day}</span>
+                <span className="ml-2 text-xs text-sky-800">
+                  {ST[v.status ?? ""] ?? v.status}
+                  {v.paid_at ? " · cobrado" : v.pay_via === "cash" ? " · pago aparte" : " · recibo"}
+                </span>
+              </p>
+              {v.status === "pending" || v.status === "rejected" ? (
+                <form action={cancelViaticDay}>
+                  {employeeId ? <input type="hidden" name="employee_id" value={employeeId} /> : null}
+                  <input type="hidden" name="day" value={v.day} />
+                  <button className="btn btn-ghost text-xs">
+                    {v.status === "pending" ? "Cancelar" : "Quitar"}
+                  </button>
+                </form>
+              ) : null}
+            </li>
+          ))}
+        </ul>
       ) : null}
-    </form>
+    </div>
   );
 }
 

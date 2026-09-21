@@ -21,6 +21,13 @@ export function atBuenosAires(ymd: string, hm: string) {
   return new Date(`${ymd}T${String(hm).slice(0, 5)}:00-03:00`);
 }
 
+/** datetime-local del browser: siempre hora de Argentina, no la del servidor UTC. */
+export function baDateTime(local: string) {
+  const m = String(local).trim().match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  if (!m) return new Date(NaN);
+  return atBuenosAires(m[1]!, m[2]!);
+}
+
 export function viaticNoveltyNote(ymd: string) {
   return `viatico|${ymd}`;
 }
