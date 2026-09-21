@@ -259,7 +259,7 @@ export async function scanUnjustifiedAbsences(formData: FormData) {
       .eq("tenant_id", s.tenantId!)
       .gte("recorded_at", `${start}T00:00:00`)
       .lt("recorded_at", new Date(year, month, 1).toISOString()),
-    db.from("viatic_days").select("employee_id, day").eq("tenant_id", s.tenantId!).gte("day", start).lte("day", end),
+    db.from("viatic_days").select("employee_id, day").eq("tenant_id", s.tenantId!).eq("status", "approved").gte("day", start).lte("day", end),
   ]);
 
   const punched = new Set(

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff, requireSession } from "@/lib/auth/session";
 import { FACE_MATCH_MAX, faceDistance, parseDescriptor } from "@/lib/face-match";
-import { getMyEmployee, uploadPunchPhoto } from "@/lib/files";
+import { getMyEmployee, uploadPunchPhoto, notifyStaff, notifyUsers } from "@/lib/files";
 import { atBuenosAires, baYmd, isPunchOut, laterHm, viaticNoveltyNote } from "@/lib/attendance";
 import { roundMoney } from "@/lib/labels";
 import { isStaff } from "@/lib/auth/roles";
@@ -86,7 +86,7 @@ export async function closeStaleOpenIns(opts?: { tenantId?: string; employeeId?:
     db.from("employees").select("id, work_location_id, agreement_id").in("id", empIds),
     db.from("work_locations").select("id, day_start, day_end, afternoon_start, afternoon_end").in("tenant_id", tenantIds),
     db.from("collective_agreements").select("id, day_start, day_end, afternoon_start, afternoon_end").in("tenant_id", tenantIds),
-    db.from("viatic_days").select("employee_id, day").in("employee_id", empIds),
+    db.from("viatic_days").select("employee_id, day, status").in("employee_id", empIds),
   ]);
   const empMap = new Map((emps ?? []).map((e) => [e.id, e]));
   const locMap = new Map((locs ?? []).map((l) => [l.id, l]));
@@ -94,7 +94,9 @@ export async function closeStaleOpenIns(opts?: { tenantId?: string; employeeId?:
   const viatics = viaticRes.error ? [] : (viaticRes.data ?? []);
 
   function isViaticDay(employeeId: string, ymd: string) {
-    return viatics.some((v) => v.employee_id === employeeId && String(v.day).slice(0, 10) === ymd);
+    return viatics.some(
+      (v) => v.employee_id === employeeId && String(v.day).slice(0, 10) === ymd && (v.status ?? "approved") === "approved",
+    );
   }
 
   const nowIso = new Date().toISOString();
@@ -478,6 +480,7 @@ function touchViatic() {
   revalidatePath("/empleado/fichaje");
   revalidatePath("/rrhh/asistencia");
   revalidatePath("/rrhh/liquidacion");
+  revalidatePath("/rrhh/viaticos");
 }
 
 async function dropViaticNovelty(db: ReturnType<typeof createAdminClient>, tenantId: string, employeeId: string, day: string) {
@@ -518,25 +521,38 @@ export async function declareViaticDay(_prev: string | null, formData: FormData)
   const day = String(formData.get("day") ?? "").slice(0, 10) || baYmd();
   const note = String(formData.get("note") ?? "").trim() || null;
   const payVia = String(formData.get("pay_via") ?? "recibo") === "cash" ? "cash" : "recibo";
+  const staffCreates = isStaff(s.roles);
+  const status = staffCreates ? "approved" : "pending";
   const { error } = await db.from("viatic_days").insert({
     tenant_id: s.tenantId,
     employee_id: employeeId,
     day,
     note,
     pay_via: payVia,
+    status,
     created_by: s.userId,
   });
   if (error) {
     if (error.code === "23505") return "Ese día ya está de viático.";
-    return /viatic_days|schema cache|pay_via/i.test(error.message)
-      ? "Corré 0023_viatic_days.sql y 0024_viatic_pay.sql en Supabase."
+    return /viatic_days|schema cache|pay_via|status/i.test(error.message)
+      ? "Corré 0023, 0024 y 0025_viatic_status.sql en Supabase."
       : error.message;
   }
-  if (payVia === "recibo") await putViaticOnPayslip(db, s.tenantId!, employeeId, day);
+  if (status === "approved" && payVia === "recibo") await putViaticOnPayslip(db, s.tenantId!, employeeId, day);
+  if (!staffCreates) {
+    await notifyStaff(
+      s.tenantId!,
+      "Pedido de viático",
+      `${me?.first_name ?? ""} ${me?.last_name ?? ""} · ${day} · ${payVia === "cash" ? "pago aparte" : "recibo"}`,
+      "/rrhh/viaticos",
+    );
+  }
   touchViatic();
-  return payVia === "cash"
-    ? "Viático cargado: se paga aparte (no va al recibo). RRHH lo tilda cuando lo entrega."
-    : "Viático cargado: va en el recibo del mes. Si se paga antes, RRHH lo tilda y sale del recibo.";
+  return staffCreates
+    ? payVia === "cash"
+      ? "Viático autorizado: pago aparte, no va al recibo."
+      : "Viático autorizado: va en el recibo del mes."
+    : "Pedido enviado. RRHH tiene que autorizarlo (caja / disponibilidad).";
 }
 
 export async function cancelViaticDay(formData: FormData) {
@@ -548,6 +564,16 @@ export async function cancelViaticDay(formData: FormData) {
   const day = String(formData.get("day") ?? "").slice(0, 10);
   if (!employeeId || !day) return;
   if (!isStaff(s.roles) && me?.id !== employeeId) return;
+  if (!isStaff(s.roles)) {
+    const { data: row } = await db
+      .from("viatic_days")
+      .select("status, paid_at")
+      .eq("employee_id", employeeId)
+      .eq("day", day)
+      .eq("tenant_id", s.tenantId!)
+      .maybeSingle();
+    if (!row || row.paid_at || row.status === "approved") return;
+  }
   await db.from("viatic_days").delete().eq("employee_id", employeeId).eq("day", day).eq("tenant_id", s.tenantId!);
   await dropViaticNovelty(db, s.tenantId!, employeeId, day);
   touchViatic();
@@ -561,11 +587,11 @@ export async function setViaticPaid(formData: FormData) {
   const db = createAdminClient();
   const { data: row } = await db
     .from("viatic_days")
-    .select("id, employee_id, day, pay_via")
+    .select("id, employee_id, day, pay_via, status")
     .eq("id", id)
     .eq("tenant_id", s.tenantId!)
     .maybeSingle();
-  if (!row) return;
+  if (!row || (row as { status?: string }).status === "pending") return;
   const day = String(row.day).slice(0, 10);
   await db
     .from("viatic_days")
@@ -573,5 +599,38 @@ export async function setViaticPaid(formData: FormData) {
     .eq("id", id);
   if (paid) await dropViaticNovelty(db, s.tenantId!, row.employee_id, day);
   else if (row.pay_via !== "cash") await putViaticOnPayslip(db, s.tenantId!, row.employee_id, day);
+  touchViatic();
+}
+
+export async function decideViatic(formData: FormData) {
+  const s = await requireStaff();
+  const id = String(formData.get("id") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (!id || (decision !== "approved" && decision !== "rejected")) return;
+  const db = createAdminClient();
+  const { data: row } = await db
+    .from("viatic_days")
+    .select("id, employee_id, day, pay_via, status")
+    .eq("id", id)
+    .eq("tenant_id", s.tenantId!)
+    .maybeSingle();
+  if (!row || row.status !== "pending") return;
+  const day = String(row.day).slice(0, 10);
+  await db.from("viatic_days").update({ status: decision }).eq("id", id);
+  if (decision === "approved" && row.pay_via === "recibo") {
+    await putViaticOnPayslip(db, s.tenantId!, row.employee_id, day);
+  } else {
+    await dropViaticNovelty(db, s.tenantId!, row.employee_id, day);
+  }
+  const { data: emp } = await db.from("employees").select("user_id").eq("id", row.employee_id).maybeSingle();
+  if (emp?.user_id) {
+    await notifyUsers(
+      s.tenantId!,
+      [emp.user_id],
+      decision === "approved" ? "Viático autorizado" : "Viático no autorizado",
+      decision === "approved" ? `${day} · listo para salir` : `${day} · no hay autorización (caja / disponibilidad)`,
+      "/empleado/fichaje",
+    );
+  }
   touchViatic();
 }

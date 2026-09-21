@@ -24,7 +24,7 @@ export default async function FichajePage() {
 
   const todayYmd = baYmd();
   const { data: viaticToday } = me
-    ? await db.from("viatic_days").select("id, pay_via, paid_at").eq("employee_id", me.id).eq("day", todayYmd).maybeSingle()
+    ? await db.from("viatic_days").select("id, pay_via, paid_at, status").eq("employee_id", me.id).eq("day", todayYmd).maybeSingle()
     : { data: null };
   const last = today?.length ? today[today.length - 1] : null;
   const lastOut = last && (last.punch_type === "out" || String(last.method).endsWith(":out"));
@@ -44,6 +44,7 @@ export default async function FichajePage() {
           already={Boolean(viaticToday)}
           payVia={viaticToday?.pay_via ?? undefined}
           paid={Boolean(viaticToday?.paid_at)}
+          status={viaticToday?.status ?? undefined}
         />
         <ul className="mt-6 space-y-2 text-sm">
           {(today ?? []).map((r) => {

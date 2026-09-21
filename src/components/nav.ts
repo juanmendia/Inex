@@ -42,6 +42,7 @@ export const NAV = {
       title: "Tiempo",
       items: [
         { label: "Asistencia", href: "/rrhh/asistencia" },
+        { label: "Viáticos", href: "/rrhh/viaticos" },
         { label: "Ausencias", href: "/rrhh/ausencias" },
         { label: "Eventos", href: "/rrhh/eventos" },
       ],

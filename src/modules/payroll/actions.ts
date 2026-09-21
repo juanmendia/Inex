@@ -144,6 +144,7 @@ export async function loadOvertimeFromAttendance(formData: FormData) {
     .from("viatic_days")
     .select("employee_id, day")
     .eq("tenant_id", s.tenantId!)
+    .eq("status", "approved")
     .gte("day", startDay)
     .lte("day", endDay);
   const viaticByEmp = new Map<string, Set<string>>();

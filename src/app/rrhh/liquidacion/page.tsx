@@ -33,7 +33,7 @@ export default async function LiquidacionPage() {
       .limit(30),
     db
       .from("viatic_days")
-      .select("id, employee_id, day, pay_via, paid_at, note")
+      .select("id, employee_id, day, pay_via, paid_at, note, status")
       .eq("tenant_id", s.tenantId!)
       .gte("day", startDay)
       .lte("day", endDay)
@@ -136,7 +136,8 @@ export default async function LiquidacionPage() {
           (viatics ?? []).map((v) => {
             const emp = (employees ?? []).find((e) => e.id === v.employee_id);
             const paid = Boolean(v.paid_at);
-            const onSlip = !paid && v.pay_via !== "cash";
+            const st = v.status ?? "approved";
+            const onSlip = st === "approved" && !paid && v.pay_via !== "cash";
             return (
               <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                 <div>
@@ -144,15 +145,25 @@ export default async function LiquidacionPage() {
                     {emp ? `${emp.last_name}, ${emp.first_name}` : "Empleado"} · {String(v.day).slice(0, 10)}
                   </p>
                   <p className="text-xs" style={{ color: "var(--muted)" }}>
-                    {paid ? "Pagado aparte · no va al recibo" : onSlip ? "En el recibo" : "Pago aparte, pendiente de entregar"}
+                    {st === "pending"
+                      ? "Pendiente en Viáticos"
+                      : st === "rejected"
+                        ? "No autorizado"
+                        : paid
+                          ? "Pagado aparte · no va al recibo"
+                          : onSlip
+                            ? "En el recibo"
+                            : "Pago aparte, pendiente de entregar"}
                     {v.note ? ` · ${v.note}` : ""}
                   </p>
                 </div>
+                {st === "approved" ? (
                 <form action={setViaticPaid}>
                   <input type="hidden" name="id" value={v.id} />
                   <input type="hidden" name="paid" value={paid ? "0" : "1"} />
                   <button className="btn btn-ghost text-xs">{paid ? "Destildar" : "Ya pagado"}</button>
                 </form>
+                ) : null}
               </li>
             );
           })

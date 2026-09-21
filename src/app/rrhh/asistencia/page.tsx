@@ -3,7 +3,6 @@ import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signedUrl } from "@/lib/files";
 import { ManualAttendanceForm } from "./manual-form";
-import { StaffViaticForm } from "@/app/empleado/fichaje/viatic-form";
 import { AttendanceBoard, type AttendancePunch } from "./attendance-board";
 import { isPunchOut } from "@/lib/attendance";
 import { closeStaleOpenIns } from "@/modules/attendance/actions";
@@ -70,7 +69,7 @@ export default async function AsistenciaRrhh({
       : Promise.resolve(full),
     peopleQ,
     countQ,
-    db.from("viatic_days").select("employee_id, day").eq("tenant_id", s.tenantId!).gte("day", fromDay).lte("day", toDay),
+    db.from("viatic_days").select("employee_id, day").eq("tenant_id", s.tenantId!).eq("status", "approved").gte("day", fromDay).lte("day", toDay),
   ]);
 
   const dayStart = new Date();
@@ -131,7 +130,9 @@ export default async function AsistenciaRrhh({
       </div>
 
       <ManualAttendanceForm employees={people ?? []} />
-      <StaffViaticForm employees={people ?? []} />
+      <p className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
+        Viáticos se cargan y autorizan en <a className="underline" href="/rrhh/viaticos">Viáticos</a>.
+      </p>
       <AttendanceBoard
         punches={punches}
         employees={people ?? []}
