@@ -50,17 +50,18 @@ export async function closeStaleOpenIns(opts?: { tenantId?: string; employeeId?:
   if (opts?.tenantId) q = q.eq("tenant_id", opts.tenantId);
   if (opts?.employeeId) q = q.eq("employee_id", opts.employeeId);
   const { data } = await q;
-  const byEmp = new Map<string, typeof data>();
+  type PunchRow = NonNullable<typeof data> extends (infer R)[] ? R : never;
+  const byEmp = new Map<string, PunchRow[]>();
   for (const r of data ?? []) {
     const list = byEmp.get(r.employee_id) ?? [];
     list.push(r);
     byEmp.set(r.employee_id, list);
   }
-  const opens: NonNullable<typeof data> = [];
-  const repairs: { fake: NonNullable<typeof data>[number]; inn: NonNullable<typeof data>[number] }[] = [];
+  const opens: PunchRow[] = [];
+  const repairs: { fake: PunchRow; inn: PunchRow }[] = [];
   for (const list of byEmp.values()) {
-    let open: (typeof list)[number] | null = null;
-    for (const p of list ?? []) {
+    let open: PunchRow | null = null;
+    for (const p of list) {
       if (!isPunchOut(p)) {
         if (open && baYmd(open.recorded_at) < today) opens.push(open);
         open = p;
