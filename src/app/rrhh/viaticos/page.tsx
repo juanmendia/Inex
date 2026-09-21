@@ -34,8 +34,7 @@ export default async function ViaticosRrhh() {
   return (
     <Shell area="rrhh" title="Viáticos" session={s}>
       <p className="mb-4 max-w-2xl text-sm" style={{ color: "var(--muted)" }}>
-        Acá autorizás la salida (si hay plata en caja), cargás un viático vos, o lo rechazás. No es una
-        ausencia: el pedido del empleado llega a esta pantalla.
+        Todo viático queda pendiente hasta que lo autorices (caja). El empleado pide; vos autorizás o rechazás.
       </p>
       <StaffViaticForm employees={people ?? []} />
 

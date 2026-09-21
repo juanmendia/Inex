@@ -526,15 +526,14 @@ export async function declareViaticDay(_prev: string | null, formData: FormData)
   if (!isStaff(s.roles) && day < baYmd()) return "El día de viático no puede ser anterior a hoy.";
   const note = String(formData.get("note") ?? "").trim() || null;
   const payVia = String(formData.get("pay_via") ?? "recibo") === "cash" ? "cash" : "recibo";
-  const staffCreates = isStaff(s.roles);
-  const status = staffCreates ? "approved" : "pending";
+  const fromPortal = !String(formData.get("employee_id") ?? "").trim();
   const { error } = await db.from("viatic_days").insert({
     tenant_id: s.tenantId,
     employee_id: employeeId,
     day,
     note,
     pay_via: payVia,
-    status,
+    status: "pending",
     created_by: s.userId,
   });
   if (error) {
@@ -543,8 +542,7 @@ export async function declareViaticDay(_prev: string | null, formData: FormData)
       ? "Corré 0023, 0024 y 0025_viatic_status.sql en Supabase."
       : error.message;
   }
-  if (status === "approved" && payVia === "recibo") await putViaticOnPayslip(db, s.tenantId!, employeeId, day);
-  if (!staffCreates) {
+  if (fromPortal) {
     const who = `${me?.first_name ?? ""} ${me?.last_name ?? ""}`.trim();
     const body = `${who} · ${day} · ${payVia === "cash" ? "pago aparte" : "recibo"}`;
     const staffIds = await notifyStaff(s.tenantId!, "Pedido de viático", body, "/rrhh/viaticos");
@@ -559,11 +557,7 @@ export async function declareViaticDay(_prev: string | null, formData: FormData)
     }
   }
   touchViatic();
-  return staffCreates
-    ? payVia === "cash"
-      ? "Viático autorizado: pago aparte, no va al recibo."
-      : "Viático autorizado: va en el recibo del mes."
-    : "Pedido enviado. RRHH tiene que autorizarlo (caja / disponibilidad).";
+  return "Quedó pendiente: RRHH tiene que autorizarlo.";
 }
 
 export async function cancelViaticDay(formData: FormData) {
