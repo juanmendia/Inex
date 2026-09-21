@@ -56,6 +56,13 @@ export default async function EmpleadosPage() {
                   <a href={`/rrhh/empleados/${e.id}`} className="underline-offset-2 hover:underline" style={{ color: "var(--accent)" }}>
                     Ficha
                   </a>
+                  <a
+                    href={`/rrhh/reportes?ids=${e.id}`}
+                    className="ml-2 underline-offset-2 hover:underline"
+                    style={{ color: "var(--accent)" }}
+                  >
+                    Reporte
+                  </a>
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-col items-end gap-1">
