@@ -2,6 +2,7 @@ import { Shell } from "@/components/shell";
 import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addNovelty, runPayroll, loadOvertimeFromAttendance, updateNovelty } from "@/modules/payroll/actions";
+import { setViaticPaid } from "@/modules/attendance/actions";
 import { PAYROLL_NOVELTY, PAYROLL_RUN } from "@/lib/labels";
 import { PAYROLL_CONCEPTS } from "@/lib/payroll-concepts";
 
@@ -10,7 +11,9 @@ export default async function LiquidacionPage() {
   const db = createAdminClient();
   const year = new Date().getFullYear();
   const month = new Date().getMonth() + 1;
-  const [{ data: employees }, { data: runs }, { data: novelties }] = await Promise.all([
+  const startDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDay = new Date(year, month, 0).toISOString().slice(0, 10);
+  const [{ data: employees }, { data: runs }, { data: novelties }, { data: viatics }] = await Promise.all([
     db
       .from("employees")
       .select("id, first_name, last_name, employee_number, base_salary")
@@ -28,6 +31,13 @@ export default async function LiquidacionPage() {
       .eq("tenant_id", s.tenantId!)
       .order("created_at", { ascending: false })
       .limit(30),
+    db
+      .from("viatic_days")
+      .select("id, employee_id, day, pay_via, paid_at, note")
+      .eq("tenant_id", s.tenantId!)
+      .gte("day", startDay)
+      .lte("day", endDay)
+      .order("day", { ascending: false }),
   ]);
 
   return (
@@ -43,8 +53,8 @@ export default async function LiquidacionPage() {
             Horas extras desde fichaje
           </p>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Compara entrada/salida con el horario del convenio. Hábil 150%, domingo/feriado/noche 200%. Se puede
-            corregir abajo.
+            Compara entrada/salida con el horario del convenio. Hábil 150%, domingo/feriado/noche 200%. Los días de
+            viático no entran. Se puede corregir abajo.
           </p>
           <div className="grid grid-cols-2 gap-2">
             <input name="period_year" type="number" defaultValue={year} className="field" />
@@ -112,6 +122,42 @@ export default async function LiquidacionPage() {
           Al cerrar también se generan los PDF de recibos (si todavía no existen).
         </p>
       </form>
+
+      <h2 className="mt-8 text-xs tracking-widest uppercase" style={{ color: "var(--muted)" }}>
+        Viáticos del mes
+      </h2>
+      <p className="mt-1 max-w-2xl text-xs" style={{ color: "var(--muted)" }}>
+        Tildá “Ya pagado” si se lo entregaste en efectivo o al día siguiente: sale del recibo. Destildá para que vuelva al recibo (si pidió recibo).
+      </p>
+      <ul className="panel mt-2 divide-y" style={{ borderColor: "var(--line)" }}>
+        {(viatics ?? []).length === 0 ? (
+          <li className="px-4 py-3 text-sm opacity-60">Nadie cargó viático este mes.</li>
+        ) : (
+          (viatics ?? []).map((v) => {
+            const emp = (employees ?? []).find((e) => e.id === v.employee_id);
+            const paid = Boolean(v.paid_at);
+            const onSlip = !paid && v.pay_via !== "cash";
+            return (
+              <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                <div>
+                  <p className="font-medium">
+                    {emp ? `${emp.last_name}, ${emp.first_name}` : "Empleado"} · {String(v.day).slice(0, 10)}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--muted)" }}>
+                    {paid ? "Pagado aparte · no va al recibo" : onSlip ? "En el recibo" : "Pago aparte, pendiente de entregar"}
+                    {v.note ? ` · ${v.note}` : ""}
+                  </p>
+                </div>
+                <form action={setViaticPaid}>
+                  <input type="hidden" name="id" value={v.id} />
+                  <input type="hidden" name="paid" value={paid ? "0" : "1"} />
+                  <button className="btn btn-ghost text-xs">{paid ? "Destildar" : "Ya pagado"}</button>
+                </form>
+              </li>
+            );
+          })
+        )}
+      </ul>
 
       <h2 className="mt-8 text-xs tracking-widest uppercase" style={{ color: "var(--muted)" }}>
         Novedades

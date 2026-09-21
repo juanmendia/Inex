@@ -2,19 +2,26 @@ import { Shell } from "@/components/shell";
 import { requireSuper } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TENANT_STATUS } from "@/lib/labels";
-import { sanitizePlatformAdmins, revokeTenantAccess, revokeSuperAdmin, toggleTenant } from "@/modules/tenants/actions";
-import { CreateTenantForm, GrantAccessForm, InviteSuperForm, DeleteTenantButton, ResetTempPasswordForm } from "./people-forms";
+import { sanitizePlatformAdmins, revokeTenantAccess, revokeSuperAdmin } from "@/modules/tenants/actions";
+import { CreateTenantForm, GrantAccessForm, InviteSuperForm, DeleteTenantButton, ResetTempPasswordForm, TenantStatusForm } from "./people-forms";
+
+function fmtDate(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
+}
 
 export default async function AdminHome() {
   const s = await requireSuper();
   await sanitizePlatformAdmins();
   const db = createAdminClient();
-  const [{ data: tenants }, { count: users }, { count: employees }, { data: adminRoles }] = await Promise.all([
-    db.from("tenants").select("id, name, slug, status, created_at").order("created_at"),
-    db.from("profiles").select("id", { count: "exact", head: true }),
-    db.from("employees").select("id", { count: "exact", head: true }),
-    db.from("user_roles").select("tenant_id, user_id").eq("role", "tenant_admin"),
-  ]);
+  const [{ data: tenants }, { count: users }, { data: empRows }, { data: adminRoles }, { data: settings }] =
+    await Promise.all([
+      db.from("tenants").select("id, name, slug, status, created_at, block_reason").order("created_at"),
+      db.from("profiles").select("id", { count: "exact", head: true }),
+      db.from("employees").select("tenant_id, status"),
+      db.from("user_roles").select("tenant_id, user_id").eq("role", "tenant_admin"),
+      db.from("tenant_settings").select("tenant_id, cuit, legal_name"),
+    ]);
   const adminIds = [...new Set((adminRoles ?? []).map((r) => r.user_id))];
   const { data: adminProfiles } = adminIds.length
     ? await db.from("profiles").select("id, email, full_name").in("id", adminIds)
@@ -52,26 +59,55 @@ export default async function AdminHome() {
     peopleByTenant.set(row.tenant_id, list);
   }
 
+  const empByTenant = new Map<string, { total: number; active: number }>();
+  for (const e of empRows ?? []) {
+    const cur = empByTenant.get(e.tenant_id) ?? { total: 0, active: 0 };
+    cur.total += 1;
+    if (e.status === "active") cur.active += 1;
+    empByTenant.set(e.tenant_id, cur);
+  }
+  const settingsByTenant = new Map((settings ?? []).map((x) => [x.tenant_id, x]));
+
+  const list = tenants ?? [];
+  const nActive = list.filter((t) => t.status === "active").length;
+  const nSuspended = list.filter((t) => t.status === "suspended").length;
+  const nCancelled = list.filter((t) => t.status === "cancelled").length;
+  const empTotal = empRows?.length ?? 0;
+
   return (
     <Shell area="admin" title="Empresas" session={s}>
-      <div className="flex gap-3">
-        <div className="panel min-w-0 flex-1 px-5 py-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="panel px-5 py-4">
           <p className="text-xs" style={{ color: "var(--muted)" }}>
             Empresas
           </p>
-          <p className="text-2xl font-semibold">{tenants?.length ?? 0}</p>
+          <p className="text-2xl font-semibold">{list.length}</p>
         </div>
-        <div className="panel min-w-0 flex-1 px-5 py-4">
+        <div className="panel px-5 py-4">
           <p className="text-xs" style={{ color: "var(--muted)" }}>
-            Usuarios
+            Activas
           </p>
-          <p className="text-2xl font-semibold">{users ?? 0}</p>
+          <p className="text-2xl font-semibold">{nActive}</p>
         </div>
-        <div className="panel min-w-0 flex-1 px-5 py-4">
+        <div className="panel px-5 py-4">
           <p className="text-xs" style={{ color: "var(--muted)" }}>
-            Empleados
+            Bloqueadas
           </p>
-          <p className="text-2xl font-semibold">{employees ?? 0}</p>
+          <p className="text-2xl font-semibold">{nSuspended}</p>
+        </div>
+        <div className="panel px-5 py-4">
+          <p className="text-xs" style={{ color: "var(--muted)" }}>
+            Bajas
+          </p>
+          <p className="text-2xl font-semibold">{nCancelled}</p>
+        </div>
+        <div className="panel px-5 py-4">
+          <p className="text-xs" style={{ color: "var(--muted)" }}>
+            Empleados / usuarios
+          </p>
+          <p className="text-2xl font-semibold">
+            {empTotal} <span className="text-base font-normal" style={{ color: "var(--muted)" }}>/ {users ?? 0}</span>
+          </p>
         </div>
       </div>
 
@@ -81,78 +117,106 @@ export default async function AdminHome() {
             className="flex flex-col gap-4 border-b px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
             style={{ borderColor: "var(--line)" }}
           >
-            <h2 className="text-base font-semibold">Empresas</h2>
+            <div>
+              <h2 className="text-base font-semibold">Empresas</h2>
+              <p className="mt-1 text-xs" style={{ color: "var(--muted)" }}>
+                Suspender corta RRHH y el portal del empleado (falta de pago, etc.).
+              </p>
+            </div>
             <CreateTenantForm />
           </div>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b text-xs" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
-                <th className="px-6 py-2 font-medium">Nombre</th>
-                <th className="px-6 py-2 font-medium">RRHH</th>
-                <th className="px-6 py-2 font-medium">Estado</th>
-                <th className="px-6 py-2 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {(tenants ?? []).map((t) => {
-                const people = peopleByTenant.get(t.id) ?? [];
-                return (
-                  <tr key={t.id} className="border-b align-top last:border-0" style={{ borderColor: "var(--line)" }}>
-                    <td className="px-6 py-4 font-medium">{t.name}</td>
-                    <td className="px-6 py-4">
-                      {people.length === 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b text-xs" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
+                  <th className="px-6 py-2 font-medium">Empresa</th>
+                  <th className="px-4 py-2 font-medium">Plantilla</th>
+                  <th className="px-4 py-2 font-medium">RRHH</th>
+                  <th className="px-4 py-2 font-medium">Estado</th>
+                  <th className="px-4 py-2 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((t) => {
+                  const people = peopleByTenant.get(t.id) ?? [];
+                  const emps = empByTenant.get(t.id) ?? { total: 0, active: 0 };
+                  const st = settingsByTenant.get(t.id);
+                  const blocked = t.status !== "active";
+                  return (
+                    <tr key={t.id} className="border-b align-top last:border-0" style={{ borderColor: "var(--line)" }}>
+                      <td className="px-6 py-4">
+                        <p className="font-medium">{t.name}</p>
                         <p className="text-xs" style={{ color: "var(--muted)" }}>
-                          Nadie asignado
+                          {st?.legal_name && st.legal_name !== t.name ? `${st.legal_name} · ` : null}
+                          {st?.cuit ? `CUIT ${st.cuit}` : "CUIT —"} · {t.slug}
                         </p>
-                      ) : (
-                        <ul className="space-y-2">
-                          {people.map((p) => (
-                            <li key={p.userId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                              <span>
-                                {p.label}
-                                {p.email ? <span style={{ color: "var(--muted)" }}> · {p.email}</span> : null}
-                                {p.pending ? (
-                                  <span className="ml-2 text-[11px]" style={{ color: "var(--accent)" }}>
-                                    falta clave
-                                  </span>
-                                ) : null}
-                              </span>
-                              <span className="flex gap-1">
-                                {p.email ? <ResetTempPasswordForm email={p.email} /> : null}
-                                <form action={revokeTenantAccess}>
-                                  <input type="hidden" name="tenant_id" value={t.id} />
-                                  <input type="hidden" name="user_id" value={p.userId} />
-                                  <button className="btn btn-ghost text-xs">Quitar</button>
-                                </form>
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <div className="mt-2">
-                        <GrantAccessForm tenantId={t.id} />
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-xs" style={{ color: "var(--muted)" }}>
-                      {TENANT_STATUS[t.status] ?? t.status}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-1">
-                        <form action={toggleTenant}>
-                          <input type="hidden" name="id" value={t.id} />
-                          <input type="hidden" name="status" value={t.status} />
-                          <button className="btn btn-ghost text-xs">
-                            {t.status === "active" ? "Suspender" : "Activar"}
-                          </button>
-                        </form>
-                        <DeleteTenantButton id={t.id} name={t.name} />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        <p className="text-[11px]" style={{ color: "var(--muted)" }}>
+                          Alta {fmtDate(t.created_at)}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4 text-xs">
+                        {emps.active}
+                        {emps.total !== emps.active ? (
+                          <span style={{ color: "var(--muted)" }}> / {emps.total}</span>
+                        ) : null}{" "}
+                        activos
+                      </td>
+                      <td className="px-4 py-4">
+                        {people.length === 0 ? (
+                          <p className="text-xs" style={{ color: "var(--muted)" }}>
+                            Nadie asignado
+                          </p>
+                        ) : (
+                          <ul className="space-y-2">
+                            {people.map((p) => (
+                              <li key={p.userId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span>
+                                  {p.label}
+                                  {p.email ? <span style={{ color: "var(--muted)" }}> · {p.email}</span> : null}
+                                  {p.pending ? (
+                                    <span className="ml-2 text-[11px]" style={{ color: "var(--accent)" }}>
+                                      falta clave
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span className="flex gap-1">
+                                  {p.email ? <ResetTempPasswordForm email={p.email} /> : null}
+                                  <form action={revokeTenantAccess}>
+                                    <input type="hidden" name="tenant_id" value={t.id} />
+                                    <input type="hidden" name="user_id" value={p.userId} />
+                                    <button className="btn btn-ghost text-xs">Quitar</button>
+                                  </form>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className="mt-2">
+                          <GrantAccessForm tenantId={t.id} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-xs">
+                        <span className={blocked ? "font-medium text-red-700" : ""}>
+                          {TENANT_STATUS[t.status] ?? t.status}
+                        </span>
+                        {t.block_reason ? (
+                          <p className="mt-1" style={{ color: "var(--muted)" }}>
+                            {t.block_reason}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-col items-end gap-2">
+                          <TenantStatusForm id={t.id} status={t.status} reason={t.block_reason} />
+                          <DeleteTenantButton id={t.id} name={t.name} />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="panel w-full shrink-0 overflow-hidden xl:w-80">

@@ -3,7 +3,9 @@ import { PunchPad } from "@/components/punch-button";
 import { requireEmployee } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMyEmployee } from "@/lib/files";
+import { baYmd } from "@/lib/attendance";
 import { employeeHasFacePhoto } from "@/modules/attendance/actions";
+import { ViaticForm } from "./viatic-form";
 
 export default async function FichajePage() {
   const s = await requireEmployee();
@@ -20,6 +22,10 @@ export default async function FichajePage() {
         .order("recorded_at")
     : { data: [] };
 
+  const todayYmd = baYmd();
+  const { data: viaticToday } = me
+    ? await db.from("viatic_days").select("id, pay_via, paid_at").eq("employee_id", me.id).eq("day", todayYmd).maybeSingle()
+    : { data: null };
   const last = today?.length ? today[today.length - 1] : null;
   const lastOut = last && (last.punch_type === "out" || String(last.method).endsWith(":out"));
   const next = !last || lastOut ? "in" : "out";
@@ -33,6 +39,12 @@ export default async function FichajePage() {
         <div className="mt-6">
           <PunchPad next={next} hasFace={hasFace} />
         </div>
+        <ViaticForm
+          day={todayYmd}
+          already={Boolean(viaticToday)}
+          payVia={viaticToday?.pay_via ?? undefined}
+          paid={Boolean(viaticToday?.paid_at)}
+        />
         <ul className="mt-6 space-y-2 text-sm">
           {(today ?? []).map((r) => {
             const out = r.punch_type === "out" || String(r.method).endsWith(":out");

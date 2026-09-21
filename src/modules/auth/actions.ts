@@ -61,6 +61,17 @@ async function finishLogin(userId: string) {
     }
   }
   if (must) redirect("/login/clave");
+  if (!roles.includes("super_admin")) {
+    let ids = staffTenants;
+    if (!ids.length) {
+      const { data: empT } = await admin.from("employees").select("tenant_id").eq("user_id", userId).maybeSingle();
+      if (empT?.tenant_id) ids = [empT.tenant_id];
+    }
+    if (ids.length) {
+      const { data: ts } = await admin.from("tenants").select("status").in("id", ids);
+      if (ts?.length && ts.every((t) => t.status !== "active")) redirect("/bloqueado");
+    }
+  }
   redirect(homeForRoles(roles));
 }
 

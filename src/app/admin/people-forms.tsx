@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { createTenant, grantTenantAccess, inviteSuperAdmin, deleteTenant, resetTempPassword } from "@/modules/tenants/actions";
+import { createTenant, grantTenantAccess, inviteSuperAdmin, deleteTenant, resetTempPassword, setTenantStatus } from "@/modules/tenants/actions";
 import { ConfirmForm } from "@/components/confirm-dialog";
 
 export function CreateTenantForm() {
@@ -71,6 +71,47 @@ export function ResetTempPasswordForm({ email }: { email: string }) {
           {message}
         </span>
       ) : null}
+    </form>
+  );
+}
+
+export function TenantStatusForm({
+  id,
+  status,
+  reason,
+}: {
+  id: string;
+  status: string;
+  reason: string | null;
+}) {
+  if (status !== "active") {
+    return (
+      <form action={setTenantStatus} className="flex flex-col items-end gap-1">
+        <input type="hidden" name="id" value={id} />
+        <input type="hidden" name="next_status" value="active" />
+        {reason ? (
+          <p className="max-w-[12rem] text-right text-[11px]" style={{ color: "var(--muted)" }}>
+            {reason}
+          </p>
+        ) : null}
+        <button className="btn btn-primary text-xs">Activar</button>
+      </form>
+    );
+  }
+  return (
+    <form action={setTenantStatus} className="flex flex-col items-end gap-1">
+      <input type="hidden" name="id" value={id} />
+      <select name="next_status" className="field field-sm w-36">
+        <option value="suspended">Suspender</option>
+        <option value="cancelled">Dar de baja</option>
+      </select>
+      <select name="block_reason" className="field field-sm w-36">
+        <option value="Falta de pago">Falta de pago</option>
+        <option value="Contrato vencido">Contrato vencido</option>
+        <option value="Baja a pedido">Baja a pedido</option>
+        <option value="Otro">Otro</option>
+      </select>
+      <button className="btn btn-ghost text-xs">Aplicar</button>
     </form>
   );
 }

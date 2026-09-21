@@ -9,6 +9,7 @@ import { hourValue, overtimeAmount } from "@/lib/labels";
 import { overtimeConcept } from "@/lib/payroll-concepts";
 import { overtimeFromPunches } from "@/lib/overtime-from-punches";
 import { generatePeriodReceipts } from "@/lib/generate-receipts";
+import { buenosAiresDate } from "@/lib/ar-holidays";
 
 export async function addNovelty(formData: FormData) {
   const s = await requireStaff();
@@ -137,6 +138,21 @@ export async function loadOvertimeFromAttendance(formData: FormData) {
   if (only) del = del.eq("employee_id", only);
   await del;
 
+  const startDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDay = new Date(year, month, 0).toISOString().slice(0, 10);
+  const { data: viaticRows } = await db
+    .from("viatic_days")
+    .select("employee_id, day")
+    .eq("tenant_id", s.tenantId!)
+    .gte("day", startDay)
+    .lte("day", endDay);
+  const viaticByEmp = new Map<string, Set<string>>();
+  for (const v of viaticRows ?? []) {
+    const set = viaticByEmp.get(v.employee_id) ?? new Set<string>();
+    set.add(String(v.day).slice(0, 10));
+    viaticByEmp.set(v.employee_id, set);
+  }
+
   for (const emp of employees ?? []) {
     const { data: punches } = await db
       .from("attendance_records")
@@ -147,10 +163,13 @@ export async function loadOvertimeFromAttendance(formData: FormData) {
       .order("recorded_at");
     const ag = emp.agreement_id ? agMap.get(emp.agreement_id) : undefined;
     const assigned = (emp as { work_location_id?: string | null }).work_location_id;
-    const punchesWithLoc = (punches ?? []).map((p) => ({
-      ...p,
-      work_location_id: (p as { work_location_id?: string | null }).work_location_id || assigned,
-    }));
+    const skipDays = viaticByEmp.get(emp.id) ?? new Set<string>();
+    const punchesWithLoc = (punches ?? [])
+      .filter((p) => !skipDays.has(buenosAiresDate(p.recorded_at)))
+      .map((p) => ({
+        ...p,
+        work_location_id: (p as { work_location_id?: string | null }).work_location_id || assigned,
+      }));
     const buckets = overtimeFromPunches(punchesWithLoc, {
       dayStart: (ag as { day_start?: string } | undefined)?.day_start,
       dayEnd: (ag as { day_end?: string } | undefined)?.day_end,

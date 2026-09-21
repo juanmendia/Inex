@@ -27,11 +27,19 @@ export async function ensureLeaveTypes(tenantId: string): Promise<LeaveTypeRow[]
     .eq("tenant_id", tenantId)
     .order("sort");
   if (error) throw new Error("Corré 0015_leave_types.sql en el editor SQL de Supabase.");
-  if (data?.length) return data as LeaveTypeRow[];
-  const rows = LEAVE_CATALOG.map((t) => ({ tenant_id: tenantId, ...t }));
-  const ins = await db.from("leave_types").insert(rows).select("id, code, name, employee_can_request, requires_certificate, active, sort");
-  if (ins.error) throw new Error("Corré 0015_leave_types.sql en el editor SQL de Supabase.");
-  return (ins.data ?? []) as LeaveTypeRow[];
+  await db.from("leave_types").update({ active: false, employee_can_request: false }).eq("tenant_id", tenantId).eq("code", "viatic");
+  const have = new Set((data ?? []).map((t) => t.code));
+  const missing = LEAVE_CATALOG.filter((t) => !have.has(t.code)).map((t) => ({ tenant_id: tenantId, ...t }));
+  let list = (data ?? []).filter((t) => t.code !== "viatic");
+  if (missing.length) {
+    const ins = await db
+      .from("leave_types")
+      .insert(missing)
+      .select("id, code, name, employee_can_request, requires_certificate, active, sort");
+    if (ins.error) throw new Error("Corré 0015_leave_types.sql en el editor SQL de Supabase.");
+    list = [...list, ...(ins.data ?? [])];
+  }
+  return list as LeaveTypeRow[];
 }
 
 async function certFromForm(tenantId: string, userId: string, formData: FormData) {
@@ -238,7 +246,7 @@ export async function scanUnjustifiedAbsences(formData: FormData) {
   const today = new Date().toISOString().slice(0, 10);
   const days = datesInRange(start, end).filter((d) => d < today && isWeekday(d) && !isArHoliday(d));
 
-  const [{ data: people }, { data: offs }, { data: punches }] = await Promise.all([
+  const [{ data: people }, { data: offs }, { data: punches }, { data: viatics }] = await Promise.all([
     db.from("employees").select("id, base_salary").eq("tenant_id", s.tenantId!).eq("status", "active"),
     db
       .from("time_off")
@@ -251,6 +259,7 @@ export async function scanUnjustifiedAbsences(formData: FormData) {
       .eq("tenant_id", s.tenantId!)
       .gte("recorded_at", `${start}T00:00:00`)
       .lt("recorded_at", new Date(year, month, 1).toISOString()),
+    db.from("viatic_days").select("employee_id, day").eq("tenant_id", s.tenantId!).gte("day", start).lte("day", end),
   ]);
 
   const punched = new Set(
@@ -262,6 +271,7 @@ export async function scanUnjustifiedAbsences(formData: FormData) {
     const dayPay = roundMoney(Number(emp.base_salary ?? 0) / 30);
     for (const day of days) {
       if (punched.has(`${emp.id}|${day}`)) continue;
+      if ((viatics ?? []).some((v) => v.employee_id === emp.id && String(v.day).slice(0, 10) === day)) continue;
       const ok = covered.some((o) => {
         if (!coversDay(o, day)) return false;
         if (o.kind === "company_off" && !o.employee_id) return true;

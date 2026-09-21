@@ -3,8 +3,10 @@ import { requireStaff } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signedUrl } from "@/lib/files";
 import { ManualAttendanceForm } from "./manual-form";
+import { StaffViaticForm } from "@/app/empleado/fichaje/viatic-form";
 import { AttendanceBoard, type AttendancePunch } from "./attendance-board";
 import { isPunchOut } from "@/lib/attendance";
+import { closeStaleOpenIns } from "@/modules/attendance/actions";
 
 function named(raw: unknown): string | null {
   const v = Array.isArray(raw) ? raw[0] : raw;
@@ -28,6 +30,7 @@ export default async function AsistenciaRrhh({
   searchParams: Promise<{ year?: string; month?: string }>;
 }) {
   const s = await requireStaff();
+  await closeStaleOpenIns({ tenantId: s.tenantId! });
   const sp = await searchParams;
   const now = new Date();
   const year = Number(sp.year) || now.getFullYear();
@@ -35,6 +38,8 @@ export default async function AsistenciaRrhh({
   const from = new Date(year, month - 1, 1);
   const to = new Date(year, month, 1);
   const db = createAdminClient();
+  const fromDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const toDay = new Date(year, month, 0).toISOString().slice(0, 10);
   const peopleQ = db
     .from("employees")
     .select("id, first_name, last_name, employee_number")
@@ -52,7 +57,7 @@ export default async function AsistenciaRrhh({
     .lt("recorded_at", to.toISOString())
     .order("recorded_at", { ascending: false })
     .limit(2500);
-  const [{ data: records }, { data: people }, { count: emps }] = await Promise.all([
+  const [{ data: records }, { data: people }, { count: emps }, { data: viaticRows }] = await Promise.all([
     full.error
       ? db
           .from("attendance_records")
@@ -65,6 +70,7 @@ export default async function AsistenciaRrhh({
       : Promise.resolve(full),
     peopleQ,
     countQ,
+    db.from("viatic_days").select("employee_id, day").eq("tenant_id", s.tenantId!).gte("day", fromDay).lte("day", toDay),
   ]);
 
   const dayStart = new Date();
@@ -94,6 +100,7 @@ export default async function AsistenciaRrhh({
       at: r.recorded_at,
       out: isPunchOut(r),
       missingOut: String((r as { method?: string }).method ?? "") === "missing_out",
+      scheduledOut: String((r as { method?: string }).method ?? "") === "scheduled_out",
       branch: named(r.work_locations),
       photo: photos.get(r.id) ?? null,
       meters: (r as { distance_meters?: number | null }).distance_meters ?? null,
@@ -124,7 +131,18 @@ export default async function AsistenciaRrhh({
       </div>
 
       <ManualAttendanceForm employees={people ?? []} />
-      <AttendanceBoard punches={punches} employees={people ?? []} year={year} month={month} />
+      <StaffViaticForm employees={people ?? []} />
+      <AttendanceBoard
+        punches={punches}
+        employees={people ?? []}
+        year={year}
+        month={month}
+        viatics={(viaticRows ?? []).map((v) => {
+          const p = (people ?? []).find((e) => e.id === v.employee_id);
+          const name = p ? `${p.last_name}, ${p.first_name}` : "Empleado";
+          return { employeeId: v.employee_id, date: String(v.day).slice(0, 10), name };
+        })}
+      />
     </Shell>
   );
 }

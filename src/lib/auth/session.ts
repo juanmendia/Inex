@@ -53,9 +53,10 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   ];
 
   const { data: tenantRows } = staffTenantIds.length
-    ? await admin.from("tenants").select("id, name").in("id", staffTenantIds)
-    : { data: [] as { id: string; name: string }[] };
-  let memberships = (tenantRows ?? []).map((t) => ({ id: t.id, name: t.name }));
+    ? await admin.from("tenants").select("id, name, status").in("id", staffTenantIds)
+    : { data: [] as { id: string; name: string; status: string }[] };
+  const activeRows = (tenantRows ?? []).filter((t) => t.status === "active");
+  let memberships = activeRows.map((t) => ({ id: t.id, name: t.name }));
   const allowedIds = new Set(memberships.map((m) => m.id));
 
   const jar = await cookies();
@@ -63,7 +64,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
 
   let tenantId: string | null = null;
   if (wanted && allowedIds.has(wanted)) tenantId = wanted;
-  else if (staffTenantIds.length === 1) tenantId = staffTenantIds[0]!;
+  else if (activeRows.length === 1) tenantId = activeRows[0]!.id;
   else if (allRoles.includes(RoleCode.EMPLOYEE)) tenantId = profile?.tenant_id ?? null;
 
   if (tenantId && !memberships.some((m) => m.id === tenantId)) {
@@ -100,13 +101,22 @@ export async function requireStaff(): Promise<SessionContext> {
   if (s.roles.includes(RoleCode.SUPER_ADMIN) || !isStaff(s.roles) || !s.tenantId) {
     redirect(s.roles.includes(RoleCode.SUPER_ADMIN) ? "/admin" : homeForRoles(s.roles));
   }
+  await assertTenantActive(s.tenantId);
   return s;
 }
 
 export async function requireEmployee(): Promise<SessionContext> {
   const s = await requireSession();
   if (!s.roles.includes(RoleCode.EMPLOYEE) || !s.tenantId) redirect(homeForRoles(s.roles));
+  await assertTenantActive(s.tenantId);
   return s;
+}
+
+async function assertTenantActive(tenantId: string | null) {
+  if (!tenantId) return;
+  const admin = createAdminClient();
+  const { data } = await admin.from("tenants").select("status").eq("id", tenantId).maybeSingle();
+  if (data && data.status !== "active") redirect("/bloqueado");
 }
 
 export async function requireSuper(): Promise<SessionContext> {

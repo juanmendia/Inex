@@ -16,6 +16,7 @@ export type AttendancePunch = {
   photo: string | null;
   meters: number | null;
   missingOut?: boolean;
+  scheduledOut?: boolean;
 };
 
 function dayKey(iso: string) {
@@ -47,7 +48,10 @@ function PunchTime({ punch, empty }: { punch: AttendancePunch | null; empty: str
   if (punch.missingOut) return <div className="text-red-800">No fichó</div>;
   return (
     <div className="flex items-center gap-1.5">
-      <span>{clock(punch.at)}</span>
+      <span>
+        {clock(punch.at)}
+        {punch.scheduledOut ? <span className="ml-1 text-[11px] text-amber-800">horario</span> : null}
+      </span>
       <ConfirmForm action={deleteAttendancePunch} title="¿Borrar este fichaje?" body="Se quita de asistencia. Podés cargarlo de nuevo a mano.">
         <input type="hidden" name="id" value={punch.id} />
         <button type="submit" className="rounded p-0.5 text-red-700 opacity-50 hover:opacity-100" title="Borrar fichaje">
@@ -63,11 +67,13 @@ export function AttendanceBoard({
   employees,
   year,
   month,
+  viatics = [],
 }: {
   punches: AttendancePunch[];
   employees: { id: string; first_name: string; last_name: string; employee_number?: string }[];
   year: number;
   month: number;
+  viatics?: { employeeId: string; date: string; name: string }[];
 }) {
   const [q, setQ] = useState("");
   const [empId, setEmpId] = useState("");
@@ -75,6 +81,7 @@ export function AttendanceBoard({
 
   const days = useMemo(() => {
     const needle = q.trim().toLowerCase();
+    const viaticSet = new Set(viatics.map((v) => `${v.employeeId}|${v.date}`));
     const filtered = punches.filter((p) => {
       if (empId && p.employeeId !== empId) return false;
       if (needle && !p.search.toLowerCase().includes(needle) && !p.name.toLowerCase().includes(needle)) return false;
@@ -86,6 +93,11 @@ export function AttendanceBoard({
       const list = byDay.get(k) ?? [];
       list.push(p);
       byDay.set(k, list);
+    }
+    for (const v of viatics) {
+      if (empId && v.employeeId !== empId) continue;
+      if (needle && !v.name.toLowerCase().includes(needle)) continue;
+      if (!byDay.has(v.date)) byDay.set(v.date, []);
     }
     return [...byDay.entries()]
       .sort((a, b) => b[0].localeCompare(a[0]))
@@ -112,13 +124,16 @@ export function AttendanceBoard({
             }
           }
           if (open) legs.push({ inn: open, out: null });
-          const ms = legs.reduce((acc, l) => {
-            if (!l.inn || !l.out) return acc;
-            const d = new Date(l.out.at).getTime() - new Date(l.inn.at).getTime();
-            return acc + Math.max(0, d);
-          }, 0);
-          const missing = legs.some((l) => l.out?.missingOut || (!l.out && l.inn));
-          const ok = legs.length > 0 && legs.every((l) => l.inn && l.out) && !missing;
+          const isViatic = viaticSet.has(`${id}|${date}`);
+          const ms = isViatic
+            ? 0
+            : legs.reduce((acc, l) => {
+                if (!l.inn || !l.out) return acc;
+                const d = new Date(l.out.at).getTime() - new Date(l.inn.at).getTime();
+                return acc + Math.max(0, d);
+              }, 0);
+          const missing = !isViatic && legs.some((l) => l.out?.missingOut || (!l.out && l.inn));
+          const ok = isViatic || (legs.length > 0 && legs.every((l) => l.inn && l.out) && !missing);
           const firstIn = legs.find((l) => l.inn)?.inn ?? null;
           const lastOut = [...legs].reverse().find((l) => l.out)?.out ?? null;
           return {
@@ -128,8 +143,9 @@ export function AttendanceBoard({
             firstIn,
             lastOut,
             ok,
+            viatic: isViatic,
             ms,
-            hours: ms > 0 ? fmtHours(ms) : "—",
+            hours: isViatic ? "Viático" : ms > 0 ? fmtHours(ms) : "—",
             photo: firstIn?.photo ?? lastOut?.photo ?? null,
             branch: firstIn?.branch ?? lastOut?.branch ?? null,
             meters: firstIn?.meters ?? lastOut?.meters ?? null,
@@ -137,11 +153,33 @@ export function AttendanceBoard({
             punchIds: sorted.map((x) => x.id).join(","),
           };
         });
+        for (const v of viatics) {
+          if (v.date !== date) continue;
+          if (empId && v.employeeId !== empId) continue;
+          if (needle && !v.name.toLowerCase().includes(needle)) continue;
+          if (people.some((p) => p.id === v.employeeId)) continue;
+          people.push({
+            id: v.employeeId,
+            name: v.name,
+            legs: [],
+            firstIn: null,
+            lastOut: null,
+            ok: true,
+            viatic: true,
+            ms: 0,
+            hours: "Viático",
+            photo: null,
+            branch: null,
+            meters: null,
+            first: `${date}T12:00:00-03:00`,
+            punchIds: "",
+          });
+        }
         people.sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name, "es") : a.first.localeCompare(b.first)));
         const dayMs = people.reduce((acc, p) => acc + p.ms, 0);
         return { date, people, dayMs };
       });
-  }, [punches, q, empId, sort]);
+  }, [punches, q, empId, sort, viatics]);
 
   const peopleOpts = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -247,7 +285,7 @@ export function AttendanceBoard({
               </thead>
               <tbody>
                 {d.people.map((p) => (
-                  <tr key={p.id} className={p.ok ? "bg-emerald-50/80" : "bg-red-50/80"}>
+                  <tr key={p.id} className={p.viatic ? "bg-sky-50/80" : p.ok ? "bg-emerald-50/80" : "bg-red-50/80"}>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
                         {p.photo ? (
@@ -278,7 +316,9 @@ export function AttendanceBoard({
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
-                        {p.ok ? (
+                        {p.viatic ? (
+                          <span className="text-xs font-medium text-sky-800">Viático</span>
+                        ) : p.ok ? (
                           <Check className="text-emerald-700" size={18} aria-label="Completo" />
                         ) : (
                           <X className="text-red-700" size={18} aria-label="Incompleto" />

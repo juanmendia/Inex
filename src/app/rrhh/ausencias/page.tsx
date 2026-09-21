@@ -123,7 +123,7 @@ export default async function AusenciasRrhh() {
       </ul>
 
       <ul className="panel mt-6 divide-y">
-        {(rows ?? []).map((r) => {
+        {(rows ?? []).filter((r) => r.kind !== "viatic").map((r) => {
           const emp = r.employees as { first_name: string; last_name: string } | { first_name: string; last_name: string }[] | null;
           const e = Array.isArray(emp) ? emp[0] : emp;
           const who = e ? `${e.last_name}, ${e.first_name}` : "Toda la empresa";

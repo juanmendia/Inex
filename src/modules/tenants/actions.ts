@@ -331,8 +331,10 @@ export async function enterTenant(formData: FormData) {
   if (s.roles.includes(RoleCode.SUPER_ADMIN)) redirect("/admin");
   const tenantId = String(formData.get("tenant_id"));
   if (!tenantId || !s.memberships.some((m) => m.id === tenantId)) return;
-  await writeTenantCookie(tenantId);
   const db = createAdminClient();
+  const { data: t } = await db.from("tenants").select("status").eq("id", tenantId).maybeSingle();
+  if (!t || t.status !== "active") redirect("/bloqueado");
+  await writeTenantCookie(tenantId);
   await db.from("profiles").update({ tenant_id: tenantId }).eq("id", s.userId);
   await writeRolesCookie([...new Set([...s.roles.filter((r) => r !== RoleCode.SUPER_ADMIN), RoleCode.TENANT_ADMIN])]);
   redirect("/rrhh");
@@ -371,15 +373,20 @@ export async function deleteTenant(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export async function toggleTenant(formData: FormData) {
-  try {
-    await requireSuper();
-    const id = String(formData.get("id"));
-    const status = String(formData.get("status")) === "active" ? "suspended" : "active";
-    const db = createAdminClient();
-    await db.from("tenants").update({ status }).eq("id", id);
-    revalidatePath("/admin");
-  } catch {
-    revalidatePath("/admin");
-  }
+export async function setTenantStatus(formData: FormData) {
+  await requireSuper();
+  const id = String(formData.get("id"));
+  const status = String(formData.get("next_status"));
+  if (!id || !["active", "suspended", "cancelled"].includes(status)) return;
+  const reason = String(formData.get("block_reason") ?? "").trim();
+  const db = createAdminClient();
+  await db
+    .from("tenants")
+    .update({
+      status,
+      block_reason: status === "active" ? null : reason || "Suspendida",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  revalidatePath("/admin");
 }

@@ -50,7 +50,7 @@ export default async function VacacionesEmpleado() {
         <button className="btn btn-primary md:col-span-2">Pedir</button>
       </form>
       <ul className="panel divide-y">
-        {(rows ?? []).map((r) => {
+        {(rows ?? []).filter((r) => r.kind !== "viatic").map((r) => {
           const label = (r.leave_type_id && byId.get(r.leave_type_id)?.name) || TIME_OFF_KIND[r.kind] || r.kind;
           return (
             <li key={r.id} className="space-y-2 px-4 py-3 text-sm">
