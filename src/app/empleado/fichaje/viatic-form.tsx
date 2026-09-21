@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { declareViaticDay, cancelViaticDay } from "@/modules/attendance/actions";
 
 function PayViaFields() {
@@ -42,9 +42,14 @@ export function ViaticForm({
   upcoming?: MyViatic[];
 }) {
   const [message, action, pending] = useActionState(declareViaticDay, null);
+  const [open, setOpen] = useState(false);
   return (
-    <div className="space-y-3">
-      <form action={action} className="space-y-2 rounded-xl bg-zinc-50 p-4 text-sm">
+    <div className="max-w-xs text-right">
+      <button type="button" className="btn btn-ghost text-xs" onClick={() => setOpen((v) => !v)}>
+        {open ? "Cerrar" : "Pedir viático"}
+      </button>
+      {open ? (
+        <form action={action} className="mt-2 space-y-2 rounded-xl bg-white p-3 text-left text-sm ring-1 ring-zinc-200">
         {employeeId ? <input type="hidden" name="employee_id" value={employeeId} /> : null}
         <p className="font-medium">¿Salís de viático?</p>
         <p className="text-xs" style={{ color: "var(--muted)" }}>
@@ -65,8 +70,9 @@ export function ViaticForm({
           </p>
         ) : null}
       </form>
+      ) : null}
       {upcoming.length ? (
-        <ul className="space-y-2 text-sm">
+        <ul className="mt-2 space-y-2 text-left text-sm">
           {upcoming.map((v) => (
             <li key={v.day} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sky-50 px-3 py-2">
               <p>

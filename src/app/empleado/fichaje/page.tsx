@@ -40,21 +40,25 @@ export default async function FichajePage() {
   return (
     <Shell area="empleado" title="Fichaje" session={s}>
       <div className="mx-auto max-w-md rounded-2xl bg-white p-6 ring-1 ring-zinc-200">
-        <p className="text-sm text-zinc-500">Hoy</p>
-        <p className="mt-1 text-2xl font-semibold">{next === "in" ? "Entrada" : "Salida"}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm text-zinc-500">Hoy</p>
+            <p className="mt-1 text-2xl font-semibold">{next === "in" ? "Entrada" : "Salida"}</p>
+          </div>
+          <ViaticForm
+            defaultDay={todayYmd}
+            upcoming={(upcoming ?? []).map((v) => ({
+              day: String(v.day).slice(0, 10),
+              pay_via: v.pay_via,
+              paid_at: v.paid_at,
+              status: v.status,
+              note: v.note,
+            }))}
+          />
+        </div>
         <div className="mt-6">
           <PunchPad next={next} hasFace={hasFace} />
         </div>
-        <ViaticForm
-          defaultDay={todayYmd}
-          upcoming={(upcoming ?? []).map((v) => ({
-            day: String(v.day).slice(0, 10),
-            pay_via: v.pay_via,
-            paid_at: v.paid_at,
-            status: v.status,
-            note: v.note,
-          }))}
-        />
         <ul className="mt-6 space-y-2 text-sm">
           {(today ?? []).map((r) => {
             const out = r.punch_type === "out" || String(r.method).endsWith(":out");

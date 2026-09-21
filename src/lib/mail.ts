@@ -38,3 +38,20 @@ Si no pediste esto, avisale a RRHH.`;
   if (!res.ok) return { ok: false as const, reason: "send_fail" };
   return { ok: true as const };
 }
+
+export async function sendStaffNotice(opts: { to: string[]; subject: string; text: string }) {
+  const key = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM ?? "Inex <onboarding@resend.dev>";
+  const to = opts.to.map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (!key || !to.length) return { ok: false as const, reason: "no_mailer" };
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to, subject: opts.subject, text: opts.text }),
+  });
+  if (!res.ok) return { ok: false as const, reason: "send_fail" };
+  return { ok: true as const };
+}

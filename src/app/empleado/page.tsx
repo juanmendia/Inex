@@ -78,10 +78,11 @@ export default async function EmpleadoHome() {
 
   return (
     <Shell area="empleado" title="Inicio" session={s}>
-      <p className="text-sm text-zinc-500">{saludo}</p>
-      <h2 className="text-2xl font-semibold">Hola, {me?.first_name ?? s.fullName}</h2>
-
-      <div className="panel mt-6 max-w-md p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm text-zinc-500">{saludo}</p>
+          <h2 className="text-2xl font-semibold">Hola, {me?.first_name ?? s.fullName}</h2>
+        </div>
         <ViaticForm
           defaultDay={todayYmd}
           upcoming={(myViatics ?? []).map((v) => ({

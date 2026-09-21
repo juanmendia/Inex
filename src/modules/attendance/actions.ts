@@ -5,6 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff, requireSession } from "@/lib/auth/session";
 import { FACE_MATCH_MAX, faceDistance, parseDescriptor } from "@/lib/face-match";
 import { getMyEmployee, uploadPunchPhoto, notifyStaff, notifyUsers } from "@/lib/files";
+import { sendStaffNotice } from "@/lib/mail";
+import { requestOrigin } from "@/lib/origin";
 import { atBuenosAires, baDateTime, baYmd, isPunchOut, laterHm, viaticNoveltyNote } from "@/lib/attendance";
 import { roundMoney } from "@/lib/labels";
 import { isStaff } from "@/lib/auth/roles";
@@ -543,12 +545,18 @@ export async function declareViaticDay(_prev: string | null, formData: FormData)
   }
   if (status === "approved" && payVia === "recibo") await putViaticOnPayslip(db, s.tenantId!, employeeId, day);
   if (!staffCreates) {
-    await notifyStaff(
-      s.tenantId!,
-      "Pedido de viático",
-      `${me?.first_name ?? ""} ${me?.last_name ?? ""} · ${day} · ${payVia === "cash" ? "pago aparte" : "recibo"}`,
-      "/rrhh/viaticos",
-    );
+    const who = `${me?.first_name ?? ""} ${me?.last_name ?? ""}`.trim();
+    const body = `${who} · ${day} · ${payVia === "cash" ? "pago aparte" : "recibo"}`;
+    const staffIds = await notifyStaff(s.tenantId!, "Pedido de viático", body, "/rrhh/viaticos");
+    if (staffIds.length) {
+      const { data: profiles } = await db.from("profiles").select("email").in("id", staffIds);
+      const origin = await requestOrigin();
+      await sendStaffNotice({
+        to: (profiles ?? []).map((p) => p.email).filter(Boolean) as string[],
+        subject: `Pedido de viático · ${who || "empleado"}`,
+        text: `${who || "Un empleado"} pidió viático el ${day} (${payVia === "cash" ? "pago aparte" : "en el recibo"}).\n\nAutorizá o rechazá (caja) en ${origin}/rrhh/viaticos`,
+      });
+    }
   }
   touchViatic();
   return staffCreates

@@ -131,7 +131,9 @@ export async function notifyStaff(tenantId: string, title: string, body?: string
     .select("user_id")
     .eq("tenant_id", tenantId)
     .in("role", ["tenant_admin", "hr_admin", "hr_operator"]);
-  await notifyUsers(tenantId, [...new Set((data ?? []).map((r) => r.user_id))], title, body, href);
+  const ids = [...new Set((data ?? []).map((r) => r.user_id))];
+  await notifyUsers(tenantId, ids, title, body, href);
+  return ids;
 }
 
 export async function getMyEmployee(session: SessionContext) {
