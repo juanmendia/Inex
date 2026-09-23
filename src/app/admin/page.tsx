@@ -125,98 +125,94 @@ export default async function AdminHome() {
             </div>
             <CreateTenantForm />
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead>
-                <tr className="border-b text-xs" style={{ borderColor: "var(--line)", color: "var(--muted)" }}>
-                  <th className="px-6 py-2 font-medium">Empresa</th>
-                  <th className="px-4 py-2 font-medium">Plantilla</th>
-                  <th className="px-4 py-2 font-medium">RRHH</th>
-                  <th className="px-4 py-2 font-medium">Estado</th>
-                  <th className="px-4 py-2 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((t) => {
-                  const people = peopleByTenant.get(t.id) ?? [];
-                  const emps = empByTenant.get(t.id) ?? { total: 0, active: 0 };
-                  const st = settingsByTenant.get(t.id);
-                  const blocked = t.status !== "active";
-                  return (
-                    <tr key={t.id} className="border-b align-top last:border-0" style={{ borderColor: "var(--line)" }}>
-                      <td className="px-6 py-4">
-                        <p className="font-medium">{t.name}</p>
-                        <p className="text-xs" style={{ color: "var(--muted)" }}>
-                          {st?.legal_name && st.legal_name !== t.name ? `${st.legal_name} · ` : null}
-                          {st?.cuit ? `CUIT ${st.cuit}` : "CUIT —"} · {t.slug}
-                        </p>
-                        <p className="text-[11px]" style={{ color: "var(--muted)" }}>
-                          Alta {fmtDate(t.created_at)}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 text-xs">
-                        {emps.active}
-                        {emps.total !== emps.active ? (
-                          <span style={{ color: "var(--muted)" }}> / {emps.total}</span>
-                        ) : null}{" "}
-                        activos
-                      </td>
-                      <td className="px-4 py-4">
-                        {people.length === 0 ? (
-                          <p className="text-xs" style={{ color: "var(--muted)" }}>
-                            Nadie asignado
-                          </p>
-                        ) : (
-                          <ul className="space-y-2">
-                            {people.map((p) => (
-                              <li key={p.userId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <span>
-                                  {p.label}
-                                  {p.email ? <span style={{ color: "var(--muted)" }}> · {p.email}</span> : null}
-                                  {p.pending ? (
-                                    <span className="ml-2 text-[11px]" style={{ color: "var(--accent)" }}>
-                                      falta clave
-                                    </span>
-                                  ) : null}
-                                </span>
-                                <span className="flex gap-1">
-                                  {p.email ? <ResetTempPasswordForm email={p.email} /> : null}
-                                  <form action={revokeTenantAccess}>
-                                    <input type="hidden" name="tenant_id" value={t.id} />
-                                    <input type="hidden" name="user_id" value={p.userId} />
-                                    <button className="btn btn-ghost text-xs">Quitar</button>
-                                  </form>
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <div className="mt-2">
-                          <GrantAccessForm tenantId={t.id} />
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-xs">
-                        <span className={blocked ? "font-medium text-red-700" : ""}>
-                          {TENANT_STATUS[t.status] ?? t.status}
-                        </span>
-                        {t.block_reason ? (
-                          <p className="mt-1" style={{ color: "var(--muted)" }}>
-                            {t.block_reason}
-                          </p>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col items-end gap-2">
-                          <TenantStatusForm id={t.id} status={t.status} reason={t.block_reason} />
-                          <DeleteTenantButton id={t.id} name={t.name} />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div
+            className="hidden border-b px-6 py-2 text-xs lg:grid lg:grid-cols-[minmax(11rem,1.1fr)_5.5rem_minmax(14rem,1.6fr)_11.5rem] lg:gap-4"
+            style={{ borderColor: "var(--line)", color: "var(--muted)" }}
+          >
+            <span>Empresa</span>
+            <span>Plantilla</span>
+            <span>RRHH</span>
+            <span>Estado</span>
           </div>
+          <ul>
+            {list.map((t) => {
+              const people = peopleByTenant.get(t.id) ?? [];
+              const emps = empByTenant.get(t.id) ?? { total: 0, active: 0 };
+              const st = settingsByTenant.get(t.id);
+              const blocked = t.status !== "active";
+              return (
+                <li
+                  key={t.id}
+                  className="grid gap-4 border-b px-6 py-4 last:border-0 lg:grid-cols-[minmax(11rem,1.1fr)_5.5rem_minmax(14rem,1.6fr)_11.5rem]"
+                  style={{ borderColor: "var(--line)" }}
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">{t.name}</p>
+                    <p className="text-xs" style={{ color: "var(--muted)" }}>
+                      {st?.legal_name && st.legal_name !== t.name ? `${st.legal_name} · ` : null}
+                      {st?.cuit ? `CUIT ${st.cuit}` : "CUIT —"} · {t.slug}
+                    </p>
+                    <p className="text-[11px]" style={{ color: "var(--muted)" }}>
+                      Alta {fmtDate(t.created_at)}
+                    </p>
+                  </div>
+                  <p className="text-xs">
+                    {emps.active}
+                    {emps.total !== emps.active ? (
+                      <span style={{ color: "var(--muted)" }}> / {emps.total}</span>
+                    ) : null}{" "}
+                    activos
+                  </p>
+                  <div className="min-w-0">
+                    {people.length === 0 ? (
+                      <p className="text-xs" style={{ color: "var(--muted)" }}>
+                        Nadie asignado
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {people.map((p) => (
+                          <li key={p.userId} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                            <span className="min-w-0 break-words">
+                              {p.label}
+                              {p.email ? <span style={{ color: "var(--muted)" }}> · {p.email}</span> : null}
+                              {p.pending ? (
+                                <span className="ml-2 text-[11px]" style={{ color: "var(--accent)" }}>
+                                  falta clave
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="flex shrink-0 gap-1">
+                              {p.email ? <ResetTempPasswordForm email={p.email} /> : null}
+                              <form action={revokeTenantAccess}>
+                                <input type="hidden" name="tenant_id" value={t.id} />
+                                <input type="hidden" name="user_id" value={p.userId} />
+                                <button className="btn btn-ghost text-xs">Quitar</button>
+                              </form>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="mt-2">
+                      <GrantAccessForm tenantId={t.id} />
+                    </div>
+                  </div>
+                  <div className="text-xs">
+                    <p className={blocked ? "font-medium text-red-700" : ""}>{TENANT_STATUS[t.status] ?? t.status}</p>
+                    {t.block_reason ? (
+                      <p className="mt-1" style={{ color: "var(--muted)" }}>
+                        {t.block_reason}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex flex-col items-start gap-2">
+                      <TenantStatusForm id={t.id} status={t.status} reason={t.block_reason} />
+                      <DeleteTenantButton id={t.id} name={t.name} />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
         <section className="panel w-full shrink-0 overflow-hidden xl:w-80">

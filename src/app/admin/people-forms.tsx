@@ -99,13 +99,13 @@ export function TenantStatusForm({
     );
   }
   return (
-    <form action={setTenantStatus} className="flex flex-col items-end gap-1">
+    <form action={setTenantStatus} className="flex flex-col items-stretch gap-1">
       <input type="hidden" name="id" value={id} />
-      <select name="next_status" className="field field-sm w-36">
+      <select name="next_status" className="field field-sm">
         <option value="suspended">Suspender</option>
         <option value="cancelled">Dar de baja</option>
       </select>
-      <select name="block_reason" className="field field-sm w-36">
+      <select name="block_reason" className="field field-sm">
         <option value="Falta de pago">Falta de pago</option>
         <option value="Contrato vencido">Contrato vencido</option>
         <option value="Baja a pedido">Baja a pedido</option>

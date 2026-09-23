@@ -54,10 +54,10 @@ body {
   border-radius: 1rem;
 }
 
-.field-sm {
-  width: 13.5rem;
-  max-width: 100%;
-  flex: 0 0 13.5rem;
+.field.field-sm {
+  width: 11rem;
+  max-width: 11rem;
+  flex: 0 0 11rem;
 }
 
 /* —— Super admin: papel blanco sobre gris cálido —— */
