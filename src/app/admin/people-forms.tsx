@@ -40,17 +40,15 @@ export function InviteSuperForm() {
 export function GrantAccessForm({ tenantId }: { tenantId: string }) {
   const [message, action, pending] = useActionState(grantTenantAccess, null);
   return (
-    <form action={action} className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        <input type="hidden" name="tenant_id" value={tenantId} />
-        <input name="admin_email" type="email" required placeholder="Correo" className="field field-sm" />
-        <input name="admin_name" placeholder="Nombre" className="field field-sm" />
-        <button disabled={pending} className="btn btn-primary">
-          {pending ? "…" : "Agregar"}
-        </button>
-      </div>
+    <form action={action} className="flex flex-wrap items-center gap-1.5">
+      <input type="hidden" name="tenant_id" value={tenantId} />
+      <input name="admin_email" type="email" required placeholder="Correo" className="field field-xs" />
+      <input name="admin_name" placeholder="Nombre" className="field field-xs" />
+      <button disabled={pending} className="btn btn-primary px-3 py-1.5 text-xs">
+        {pending ? "…" : "Agregar"}
+      </button>
       {message ? (
-        <p className="text-xs break-all" style={{ color: "var(--accent)" }}>
+        <p className="basis-full text-[11px]" style={{ color: "var(--accent)" }}>
           {message}
         </p>
       ) : null}
@@ -61,13 +59,13 @@ export function GrantAccessForm({ tenantId }: { tenantId: string }) {
 export function ResetTempPasswordForm({ email }: { email: string }) {
   const [message, action, pending] = useActionState(resetTempPassword, null);
   return (
-    <form action={action} className="flex flex-col items-end gap-1">
+    <form action={action} className="inline-flex items-center gap-1">
       <input type="hidden" name="email" value={email} />
-      <button disabled={pending} className="btn btn-ghost text-xs">
-        {pending ? "…" : "Nueva clave"}
+      <button disabled={pending} className="btn btn-ghost px-1.5 py-0.5 text-xs">
+        {pending ? "…" : "Clave"}
       </button>
       {message ? (
-        <span className="max-w-xs text-right text-[11px]" style={{ color: "var(--accent)" }}>
+        <span className="max-w-[12rem] truncate text-[11px]" style={{ color: "var(--accent)" }}>
           {message}
         </span>
       ) : null}
@@ -86,32 +84,32 @@ export function TenantStatusForm({
 }) {
   if (status !== "active") {
     return (
-      <form action={setTenantStatus} className="flex flex-col items-end gap-1">
+      <form action={setTenantStatus} className="flex items-center gap-1">
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="next_status" value="active" />
         {reason ? (
-          <p className="max-w-[12rem] text-right text-[11px]" style={{ color: "var(--muted)" }}>
+          <span className="max-w-[8rem] truncate text-[11px]" style={{ color: "var(--muted)" }}>
             {reason}
-          </p>
+          </span>
         ) : null}
-        <button className="btn btn-primary text-xs">Activar</button>
+        <button className="btn btn-primary px-3 py-1.5 text-xs">Activar</button>
       </form>
     );
   }
   return (
-    <form action={setTenantStatus} className="flex flex-col items-stretch gap-1">
+    <form action={setTenantStatus} className="flex flex-wrap items-center gap-1.5">
       <input type="hidden" name="id" value={id} />
-      <select name="next_status" className="field field-sm">
+      <select name="next_status" className="field field-xs">
         <option value="suspended">Suspender</option>
         <option value="cancelled">Dar de baja</option>
       </select>
-      <select name="block_reason" className="field field-sm">
+      <select name="block_reason" className="field field-xs">
         <option value="Falta de pago">Falta de pago</option>
         <option value="Contrato vencido">Contrato vencido</option>
         <option value="Baja a pedido">Baja a pedido</option>
         <option value="Otro">Otro</option>
       </select>
-      <button className="btn btn-ghost text-xs">Aplicar</button>
+      <button className="btn btn-ghost px-2 py-1 text-xs">Aplicar</button>
     </form>
   );
 }
@@ -125,7 +123,7 @@ export function DeleteTenantButton({ id, name }: { id: string; name: string }) {
       confirm="Eliminar"
     >
       <input type="hidden" name="id" value={id} />
-      <button type="submit" className="btn btn-ghost text-xs text-red-700">
+      <button type="submit" className="btn btn-ghost px-2 py-1 text-xs text-red-700">
         Eliminar
       </button>
     </ConfirmForm>

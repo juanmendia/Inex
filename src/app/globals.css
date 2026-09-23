@@ -55,9 +55,19 @@ body {
 }
 
 .field.field-sm {
-  width: 11rem;
-  max-width: 11rem;
-  flex: 0 0 11rem;
+  width: 10rem;
+  max-width: 10rem;
+  height: auto;
+  flex: none;
+}
+.field.field-xs {
+  width: 8rem;
+  max-width: 8rem;
+  height: auto;
+  flex: none;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 0.5rem;
 }
 
 /* —— Super admin: papel blanco sobre gris cálido —— */
