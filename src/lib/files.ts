@@ -169,3 +169,19 @@ export async function audit(opts: {
     user_agent: opts.ua ?? null,
   });
 }
+
+/** Texto para /rrhh/actividad: solo lo que RRHH hace a mano. */
+export async function staffLog(
+  s: { tenantId: string | null; userId: string },
+  text: string,
+  extra?: { action?: string; entityType?: string; entityId?: string },
+) {
+  await audit({
+    tenantId: s.tenantId,
+    userId: s.userId,
+    action: extra?.action ?? "staff",
+    entityType: extra?.entityType ?? "log",
+    entityId: extra?.entityId,
+    metadata: { text },
+  });
+}

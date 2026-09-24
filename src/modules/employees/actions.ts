@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth/session";
-import { audit } from "@/lib/files";
+import { staffLog } from "@/lib/files";
 import { sendEmployeeAccessEmail } from "@/lib/mail";
 import { takeHome } from "@/lib/pay";
 
@@ -91,11 +91,10 @@ export async function createEmployee(_prev: string | null, formData: FormData): 
     pass,
     company: await companyName(db, s.tenantId!),
   });
-  await audit({
-    tenantId: s.tenantId,
-    userId: s.userId,
+  await staffLog(s, `Alta de ${row.first_name} ${row.last_name}`, {
     action: "create",
     entityType: "employee",
+    entityId: empId,
   });
   revalidatePath("/rrhh/empleados");
   revalidatePath("/rrhh");
@@ -171,7 +170,7 @@ export async function updateEmployee(formData: FormData) {
         .eq("id", id);
     }
   }
-  await audit({ tenantId: s.tenantId, userId: s.userId, action: "update", entityType: "employee", entityId: id });
+  await staffLog(s, `Cambió la ficha de un empleado`, { action: "update", entityType: "employee", entityId: id });
   revalidatePath(`/rrhh/empleados/${id}`);
   revalidatePath("/rrhh/empleados");
 }
@@ -198,6 +197,11 @@ export async function toggleEmployee(formData: FormData) {
     if (retry.error) throw new Error(retry.error.message);
   }
   await setPortal(db, emp?.user_id ?? null, status === "active");
+  await staffLog(s, status === "active" ? "Reactivó un empleado" : "Pasó un empleado a inactivo", {
+    action: "update",
+    entityType: "employee",
+    entityId: id,
+  });
   revalidatePath("/rrhh/empleados");
   revalidatePath(`/rrhh/empleados/${id}`);
 }
@@ -309,7 +313,11 @@ export async function offboardEmployee(_prev: string | null, formData: FormData)
     if (retry.error) return retry.error.message + " ¿Corriste 0007_baja.sql?";
   }
   await setPortal(db, emp.user_id ?? null, false);
-  await audit({ tenantId: s.tenantId, userId: s.userId, action: "update", entityType: "employee", entityId: id });
+  await staffLog(s, `Baja de ${emp.first_name} ${emp.last_name}`, {
+    action: "update",
+    entityType: "employee",
+    entityId: id,
+  });
   revalidatePath("/rrhh/empleados");
   revalidatePath(`/rrhh/empleados/${id}`);
   revalidatePath("/rrhh/liquidacion");

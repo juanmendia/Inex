@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff, requireSession } from "@/lib/auth/session";
 import { FACE_MATCH_MAX, faceDistance, parseDescriptor } from "@/lib/face-match";
-import { getMyEmployee, uploadPunchPhoto, notifyStaff, notifyUsers } from "@/lib/files";
+import { getMyEmployee, uploadPunchPhoto, notifyStaff, notifyUsers, staffLog } from "@/lib/files";
 import { sendStaffNotice } from "@/lib/mail";
 import { requestOrigin } from "@/lib/origin";
 import { atBuenosAires, baDateTime, baYmd, isPunchOut, laterHm, viaticNoveltyNote } from "@/lib/attendance";
@@ -381,7 +381,7 @@ export async function manualAttendance(_prev: string | null, formData: FormData)
   const db = createAdminClient();
   const { data: emp } = await db
     .from("employees")
-    .select("id")
+    .select("id, first_name, last_name")
     .eq("id", employeeId)
     .eq("tenant_id", s.tenantId!)
     .maybeSingle();
@@ -419,6 +419,20 @@ export async function manualAttendance(_prev: string | null, formData: FormData)
   } catch (e) {
     return e instanceof Error ? e.message : "No se pudo cargar.";
   }
+  const who = `${emp.last_name}, ${emp.first_name}`;
+  const bits = [
+    inDate
+      ? `entrada ${inDate.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`
+      : null,
+    outDate
+      ? `salida ${outDate.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" })}`
+      : null,
+  ].filter(Boolean);
+  await staffLog(s, `Cargó a mano ${bits.join(" y ")} de ${who}`, {
+    action: "create",
+    entityType: "attendance",
+    entityId: employeeId,
+  });
   revalidatePath("/rrhh/asistencia");
   if (inDate && outDate) return "Entrada y salida cargadas.";
   if (inDate) return "Entrada cargada. La salida la podés cargar después.";
@@ -445,6 +459,10 @@ export async function deleteAttendancePunch(formData: FormData) {
     }
   }
   await db.from("attendance_records").delete().eq("tenant_id", s.tenantId!).in("id", ids);
+  await staffLog(s, `Borró ${ids.length} fichaje${ids.length === 1 ? "" : "s"} a mano`, {
+    action: "delete",
+    entityType: "attendance",
+  });
   revalidatePath("/rrhh/asistencia");
   revalidatePath("/empleado");
   revalidatePath("/empleado/fichaje");
@@ -542,6 +560,9 @@ export async function declareViaticDay(_prev: string | null, formData: FormData)
       ? "Corré 0023, 0024 y 0025_viatic_status.sql en Supabase."
       : error.message;
   }
+  if (!fromPortal && isStaff(s.roles)) {
+    await staffLog(s, `Cargó pedido de viático ${day}`, { action: "create", entityType: "viatic", entityId: employeeId });
+  }
   if (fromPortal) {
     const who = `${me?.first_name ?? ""} ${me?.last_name ?? ""}`.trim();
     const body = `${who} · ${day} · ${payVia === "cash" ? "pago aparte" : "recibo"}`;
@@ -637,5 +658,10 @@ export async function decideViatic(formData: FormData) {
       "/empleado/fichaje",
     );
   }
+  await staffLog(s, `${decision === "approved" ? "Autorizó" : "Rechazó"} viático del ${day}`, {
+    action: "update",
+    entityType: "viatic",
+    entityId: row.employee_id,
+  });
   touchViatic();
 }

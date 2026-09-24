@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireEmployee, requireStaff } from "@/lib/auth/session";
-import { getMyEmployee, notifyStaff, notifyUsers, uploadLeaveAttachment } from "@/lib/files";
+import { getMyEmployee, notifyStaff, notifyUsers, uploadLeaveAttachment, staffLog } from "@/lib/files";
 import { isArHoliday, buenosAiresDate } from "@/lib/ar-holidays";
 import { datesInRange, isWeekday, coversDay, readPortion } from "@/lib/time-off";
 import { LEAVE_CATALOG } from "@/lib/leave-catalog";
@@ -185,6 +185,11 @@ export async function decideTimeOff(formData: FormData) {
       );
     }
   }
+  await staffLog(s, `${status === "approved" ? "Autorizó" : "Rechazó"} una licencia ${row?.starts_on ?? ""}`, {
+    action: "update",
+    entityType: "time_off",
+    entityId: id,
+  });
   touch();
 }
 
@@ -232,6 +237,11 @@ export async function staffTimeOff(formData: FormData) {
     });
     if (again.error) throw new Error("No se pudo guardar. Corré 0013 y 0020 en Supabase.");
   }
+  await staffLog(s, `Cargó licencia ${lt?.name ?? code} ${starts} → ${ends}`, {
+    action: "create",
+    entityType: "time_off",
+    entityId: employeeId ?? undefined,
+  });
   touch();
 }
 
