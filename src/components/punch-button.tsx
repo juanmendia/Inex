@@ -15,17 +15,18 @@ function deviceId() {
   return id;
 }
 
-function readGps() {
-  if (!navigator.geolocation) return Promise.resolve(null);
-  const once = (high: boolean) =>
-    new Promise<GeolocationPosition | null>((resolve) => {
-      navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), {
-        enableHighAccuracy: high,
-        timeout: high ? 8000 : 12000,
-        maximumAge: high ? 0 : 60_000,
-      });
-    });
-  return once(true).then((pos) => pos ?? once(false));
+function onceGps(opts: PositionOptions) {
+  return new Promise<{ pos: GeolocationPosition | null; code?: number }>((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ pos: null, code: 2 });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ pos }),
+      (err) => resolve({ pos: null, code: err.code }),
+      opts,
+    );
+  });
 }
 
 function friendlyActionError(e: unknown) {
@@ -41,13 +42,74 @@ export function PunchPad({ next, hasFace }: { next: "in" | "out"; hasFace: boole
   const [ok, setOk] = useState<string | null>(null);
   const [httpsHint, setHttpsHint] = useState(false);
   const [cam, setCam] = useState(false);
+  const [gpsUi, setGpsUi] = useState<"off" | "asking" | "ok" | "denied" | "fail">("off");
   const [busy, start] = useTransition();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const gpsRef = useRef<GeolocationPosition | null>(null);
+  const watchRef = useRef<number | null>(null);
+  const photoRef = useRef<File | null>(null);
+  const deniedRef = useRef(false);
+
+  function askGps() {
+    if (!navigator.geolocation) {
+      setGpsUi("fail");
+      return;
+    }
+    deniedRef.current = false;
+    setGpsUi((s) => (s === "ok" ? s : "asking"));
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        gpsRef.current = p;
+        setGpsUi("ok");
+      },
+      (e) => {
+        deniedRef.current = e.code === 1;
+        if (e.code === 1) setGpsUi("denied");
+        else if (!gpsRef.current) setGpsUi("fail");
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 15_000 },
+    );
+    if (watchRef.current != null) return;
+    watchRef.current = navigator.geolocation.watchPosition(
+      (p) => {
+        gpsRef.current = p;
+        setGpsUi("ok");
+      },
+      () => undefined,
+      { enableHighAccuracy: true, timeout: 25000, maximumAge: 15_000 },
+    );
+  }
+
+  async function waitGps(ms = 20000) {
+    if (gpsRef.current) return gpsRef.current;
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      await new Promise((r) => setTimeout(r, 250));
+      if (gpsRef.current) return gpsRef.current;
+    }
+    const coarse = await onceGps({ enableHighAccuracy: false, timeout: 10000, maximumAge: 300_000 });
+    if (coarse.pos) {
+      gpsRef.current = coarse.pos;
+      setGpsUi("ok");
+      return coarse.pos;
+    }
+    if (coarse.code === 1) {
+      deniedRef.current = true;
+      setGpsUi("denied");
+    }
+    return null;
+  }
 
   useEffect(() => {
     void loadFaceModels().catch(() => undefined);
-    return () => stopCam();
+    return () => {
+      stopCam();
+      if (watchRef.current != null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchRef.current);
+        watchRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
@@ -64,9 +126,6 @@ export function PunchPad({ next, hasFace }: { next: "in" | "out"; hasFace: boole
   }
 
   async function openCam() {
-    setErr(null);
-    setOk(null);
-    setHttpsHint(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 720 } },
@@ -81,6 +140,31 @@ export function PunchPad({ next, hasFace }: { next: "in" | "out"; hasFace: boole
       }
       setErr("Hay que permitir la cámara. Si el celular preguntó, tocá Permitir y volvé a fichar.");
     }
+  }
+
+  async function beginPunch() {
+    setErr(null);
+    setOk(null);
+    setHttpsHint(false);
+    if (!window.isSecureContext) {
+      setHttpsHint(true);
+      return;
+    }
+    if (!navigator.geolocation) {
+      setErr("Este navegador no da ubicación. En el Samsung abrí Chrome (no el navegador de Samsung) y permití Ubicación.");
+      return;
+    }
+    askGps();
+    const pos = await waitGps(22000);
+    if (!pos) {
+      setErr(
+        deniedRef.current
+          ? "Bloqueaste la ubicación. En Chrome: candado al lado de la web → Permisos → Ubicación → Permitir. En Samsung también: Ajustes → Ubicación → encendida."
+          : "No llegó el GPS. Dejalo prendido, tocá Permitir si aparece el cartel, y después Reintentar.",
+      );
+      return;
+    }
+    await openCam();
   }
 
   function submit(photo: File) {
@@ -98,9 +182,13 @@ export function PunchPad({ next, hasFace }: { next: "in" | "out"; hasFace: boole
         setErr("No se ve una cara. Mirá a la cámara de frente, con luz, y tocá de nuevo.");
         return;
       }
-      const pos = await readGps();
+      const pos = await waitGps(12000);
       if (!pos) {
-        setErr("El navegador no dio la ubicación. Permití ubicación y volvé a fichar.");
+        setErr(
+          deniedRef.current
+            ? "Bloqueaste la ubicación. Candado de Chrome → Permisos → Ubicación → Permitir."
+            : "No llegó la ubicación. Tocá Reintentar ubicación y Permitir en el cartel.",
+        );
         return;
       }
       const fd = new FormData();
@@ -134,7 +222,9 @@ export function PunchPad({ next, hasFace }: { next: "in" | "out"; hasFace: boole
       (blob) => {
         if (!blob) return;
         stopCam();
-        submit(new File([blob], "cara.jpg", { type: "image/jpeg" }));
+        const file = new File([blob], "cara.jpg", { type: "image/jpeg" });
+        photoRef.current = file;
+        submit(file);
       },
       "image/jpeg",
       0.85,
@@ -145,17 +235,36 @@ export function PunchPad({ next, hasFace }: { next: "in" | "out"; hasFace: boole
     <div>
       <p className="mb-3 text-sm" style={{ color: "var(--muted)" }}>
         {hasFace
-          ? "Tocá fichar: se abre la cámara, sacás la foto ahora y se registra."
+          ? "Primero el celular pide la ubicación (tocá Permitir). Después se abre la cámara."
           : "Primera vez: sacate una foto de frente. Queda como tu cara de referencia."}
       </p>
+      <div
+        className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs"
+        style={{ background: "color-mix(in srgb, var(--accent) 8%, transparent)", color: "var(--text)" }}
+      >
+        <span>
+          {gpsUi === "ok"
+            ? "Ubicación lista"
+            : gpsUi === "asking"
+              ? "Esperando que permitas la ubicación…"
+              : gpsUi === "denied"
+                ? "Ubicación bloqueada en el navegador"
+                : "Hace falta la ubicación para fichar"}
+        </span>
+        {gpsUi !== "ok" ? (
+          <button type="button" className="btn btn-primary px-3 py-1.5 text-xs" onClick={() => askGps()}>
+            Permitir ubicación
+          </button>
+        ) : null}
+      </div>
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || gpsUi === "asking"}
         className="w-full rounded-2xl py-6 text-lg font-medium disabled:opacity-40"
         style={{ background: "var(--accent)", color: "var(--accent-fg, #fff)" }}
-        onClick={() => void openCam()}
+        onClick={() => void beginPunch()}
       >
-        {busy ? "Registrando…" : next === "in" ? "Fichar entrada" : "Fichar salida"}
+        {busy || gpsUi === "asking" ? "Pidiendo ubicación…" : next === "in" ? "Fichar entrada" : "Fichar salida"}
       </button>
       {cam ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-black">
@@ -175,7 +284,24 @@ export function PunchPad({ next, hasFace }: { next: "in" | "out"; hasFace: boole
           {ok}
         </p>
       ) : null}
-      {err ? <p className="mt-3 text-sm text-red-600">{err}</p> : null}
+      {err ? (
+        <div className="mt-3">
+          <p className="text-sm text-red-600">{err}</p>
+          {photoRef.current && err.includes("ubicación") ? (
+            <button
+              type="button"
+              disabled={busy}
+              className="btn btn-ghost mt-2 text-xs"
+              onClick={() => {
+                askGps();
+                if (photoRef.current) submit(photoRef.current);
+              }}
+            >
+              Reintentar ubicación
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {httpsHint ? (
         <Overlay onClose={() => setHttpsHint(false)}>
           <DialogSheet>
